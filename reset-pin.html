@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <title>eWorkOrder | Reset PIN</title>
+</head>
+<body>
+  <div class="auth-wrapper">
+<div class="auth-left">
+      <div class="text-center">
+        <div class="brand-logo mx-auto">
+          <i class="bi bi-diagram-3"></i><i class="bi bi-arrow-right-short accent-arrow"></i>
+        </div>
+        <div class="brand-tagline mb-2">Intelligent Asset Management</div>
+        <h2 class="fw-bold">eWorkOrder</h2>
+        <p class="opacity-75 px-4">Intelligent Asset Management &amp; Work Execution Platform by Baker Hughes.</p>
+      </div>
+    </div>
+    <div class="auth-right">
+      <!-- STATE 1: form reset -->
+      <div class="auth-card" id="resetFormState">
+        <h3 class="fw-bold mb-1">Reset Your PIN</h3>
+        <p class="text-muted mb-4">Enter the code sent to your email and set your new PIN to regain access to your account.</p>
+        <form id="resetForm">
+          <div class="mb-3">
+            <label class="form-label">Reset Code</label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+              <input type="text" class="form-control" placeholder="Enter 6-digit code" required>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">New PIN</label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-shield-lock"></i></span>
+              <input type="password" class="form-control" placeholder="Enter new 4-6 digit PIN" required>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Confirm New PIN</label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-shield-check"></i></span>
+              <input type="password" class="form-control" placeholder="Confirm your new PIN" required>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">Change Password</button>
+        </form>
+      </div>
+
+      <!-- STATE 2: success -->
+      <div class="auth-card text-center d-none" id="successState">
+        <div class="success-check"><i class="bi bi-check-lg"></i></div>
+        <h3 class="fw-bold mb-1">Password Changed!</h3>
+        <p class="text-muted mb-4">Your password has been successfully updated. You can now log in with your new PIN.</p>
+        <a href="/index.html" class="btn btn-primary w-100 py-2 fw-semibold">Back to Login</a>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/src/pages/reset-pin.js"></script>
+</body>
+</html>

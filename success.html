@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>eWorkOrder | Success</title>
+</head>
+<body class="bg-white">
+  <div class="d-flex align-items-center justify-content-center" style="min-height:100vh; background: linear-gradient(135deg,#f4f7f6 0%,#e6f7f3 100%);">
+    <div class="text-center p-4" style="max-width:460px;">
+      <div class="success-check"><i class="bi bi-check-lg"></i></div>
+<h3 class="fw-bold mb-2" style="color:var(--deep);">Routing data has been saved successfully.</h3>
+      <ul class="list-unstyled text-start d-inline-block mb-4">
+        <li class="text-success mb-1"><i class="bi bi-check-circle-fill me-2"></i>Database Updated</li>
+        <li class="text-success mb-1"><i class="bi bi-check-circle-fill me-2"></i>Activity Log Created</li>
+        <li class="text-success mb-1"><i class="bi bi-check-circle-fill me-2"></i>Oracle Synchronization Completed</li>
+      </ul>
+      <div class="d-flex gap-2">
+        <a href="#" id="btnReturn" class="btn btn-primary w-50">Return to Work Order</a>
+        <a href="#" id="btnContinue" class="btn btn-outline-primary w-50">Continue Editing</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="successToast" class="toast align-items-center text-bg-success border-0" role="alert">
+      <div class="d-flex">
+        <div class="toast-body">Changes saved successfully.</div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/pages/success.js"></script>
+</body>
+</html>

@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>eWorkOrder | Work Order Detail</title>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-mark"><i class="bi bi-diagram-3"></i></div>
+        <span class="nav-label">eWorkOrder</span>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-section">Main</div>
+        <a href="/dashboard.html"><i class="bi bi-grid-1x2"></i><span class="nav-label">Dashboard</span></a>
+        <a href="#" class="active"><i class="bi bi-list-task"></i><span class="nav-label">Work Orders</span></a>
+        <a href="#"><i class="bi bi-people"></i><span class="nav-label">Assignments</span></a>
+        <div class="nav-section">System</div>
+        <a href="#"><i class="bi bi-gear"></i><span class="nav-label">Settings</span></a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-box">
+          <div class="avatar-chip">AP</div>
+          <div>
+            <strong>Andi Pratama</strong>
+            <small>Administrator</small>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <div class="main-col">
+      <header class="topbar">
+        <div class="d-flex align-items-center gap-3">
+          <button class="btn-icon" id="toggleSidebar"><i class="bi bi-list"></i></button>
+          <a href="/dashboard.html" class="text-decoration-none small text-muted"><i class="bi bi-arrow-left me-1"></i>Back to Dashboard</a>
+        </div>
+        <div class="d-flex align-items-center gap-3">
+          <div class="bell-wrap">
+            <button class="btn-icon"><i class="bi bi-bell"></i></button>
+            <span class="dot"></span>
+          </div>
+          <div class="avatar-chip" style="width:34px;height:34px;">AP</div>
+        </div>
+      </header>
+
+      <main class="content">
+        <div class="card wo-header-card p-0 mb-4" id="woHeaderCard"></div>
+
+        <div class="module-nav">
+          <a href="#" class="disabled text-muted" data-tab="overview">
+            <i class="bi bi-grid-1x2"></i> Overview
+          </a>
+          <a href="#" data-tab="operations" class="active">
+            <i class="bi bi-list-task"></i> Operations
+          </a>
+          <a href="#" class="disabled text-muted" data-tab="material">
+            <i class="bi bi-box-seam"></i> Material
+          </a>
+          <a href="#" class="disabled text-muted" data-tab="documents">
+            <i class="bi bi-folder2-open"></i> Document Package
+          </a>
+          <a href="#" class="disabled text-muted" data-tab="activity">
+            <i class="bi bi-activity"></i> Activity Log
+          </a>
+          <a href="#" class="disabled text-muted" data-tab="progress">
+            <i class="bi bi-bar-chart-line"></i> Current Progress
+          </a>
+        </div>
+
+        <div id="operationsView">
+          <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-3">
+              <h5 class="fw-bold mb-0">Operations</h5>
+              <span class="op-count-badge" id="opProgressTag"></span>
+            </div>
+            <div class="d-flex gap-2">
+              <div class="input-group input-group-sm" style="max-width: 260px;">
+                <span class="input-group-text bg-light border-end-0"><i class="bi bi-search"></i></span>
+                <input type="text" class="form-control border-start-0 ps-0" placeholder="Search operations..." id="opSearchInput">
+              </div>
+            </div>
+          </div>
+
+          <div class="row g-4 align-items-start">
+            <div class="col-lg-8">
+              <div class="table-wrap wo-table-wrap">
+                <table class="table wo-table op-table mb-0 align-middle">
+                  <!--
+                    FIX: colgroup dikembalikan dan lebar dikunci di sini.
+                    table-layout:fixed (lihat CSS) memakai lebar dari <col>
+                    ini secara PASTI di setiap baris, jadi kolom OP / chevron
+                    tidak lagi bergeser antar baris (230 vs 5300 vs 5400 dst).
+                  -->
+                  <colgroup>
+                    <col style="width:44px">   <!-- 1: expand chevron -->
+                    <col style="width:74px">   <!-- 2: OP number -->
+                    <col style="width:220px">  <!-- 3: Operation Name -->
+                    <col style="width:130px">  <!-- 4: Barcode -->
+                    <col style="width:172px">  <!-- 5: Requirement (fits "CLOCK REQUIRED" pill) -->
+                    <col style="width:132px">  <!-- 6: Status (fits "Not Started" pill) -->
+                    <col style="width:70px">   <!-- 7: Dept -->
+                    <col style="width:92px">   <!-- 8: Machine -->
+                    <col style="width:112px">  <!-- 9: Assigned -->
+                    <col style="width:64px">   <!-- 10: Std Hrs -->
+                    <col style="width:64px">   <!-- 11: Act Hrs -->
+                    <col style="width:100px">  <!-- 12: Actions -->
+                  </colgroup>
+                  <thead>
+                    <tr class="text-nowrap">
+                      <th class="ps-4"></th>
+                      <th class="ps-1">OP</th>
+                      <th>Operation Name</th>
+                      <th>Operation Barcode</th>
+                      <th>Requirement</th>
+                      <th>Status</th>
+                      <th>Dept</th>
+                      <th class="d-none d-lg-table-cell">Machine</th>
+                      <th class="d-none d-lg-table-cell">Assigned</th>
+                      <th class="d-none d-xl-table-cell text-center">Std Hrs</th>
+                      <th class="d-none d-xl-table-cell text-center">Act Hrs</th>
+                      <th class="text-end pe-4">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="opTableBody"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="col-lg-4">
+              <div class="op-detail-panel" id="opDetailPanel">
+                <div class="op-detail-empty">
+                  <div class="empty-state-icon">
+                    <i class="bi bi-gear-wide-connected"></i>
+                  </div>
+                  <h6 class="fw-semibold text-dark mb-2">No Operation Selected</h6>
+                  <p class="mb-0 small">Select an operation from the list to view details and workflow actions</p>
+                  <small class="text-muted d-block mt-2">Click on any operation row or the View button</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal fade" id="nextOpModal" tabindex="-1">
+          <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title fw-bold">Next Operation?</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+              </div>
+              <div class="modal-body text-muted">
+                Operation saved. Progress updated.
+                <div class="alert alert-success mt-3 mb-2 py-2">
+                  <i class="bi bi-check-circle-fill me-1"></i> Progress updated &middot; Progress bar refreshed &middot; Operation status updated
+                </div>
+                Would you like to proceed to the next operation?
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" id="noNextOpBtn">No</button>
+                <button type="button" class="btn btn-primary" id="yesNextOpBtn">Yes</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="offcanvas offcanvas-end offcanvas-panel" tabindex="-1" id="actionPanel" style="width:440px;">
+    <div class="offcanvas-header border-bottom px-4 py-3">
+      <div>
+        <h5 class="offcanvas-title fw-bold mb-0" id="panelTitle">Routing Action</h5>
+        <small class="text-muted" id="panelSubtitle">Manage operation sequence details</small>
+      </div>
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+    </div>
+    <div class="offcanvas-body p-0">
+      <form id="routingForm" novalidate class="p-4">
+        <div class="form-section">
+          <div class="form-section-title">
+            <i class="bi bi-info-circle"></i> Basic Information
+          </div>
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Operation Number <span class="text-danger">*</span></label>
+              <input type="text" class="form-control form-control-sm" id="f_opNo" required>
+              <div class="invalid-feedback small">Operation Number wajib diisi.</div>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Description <span class="text-danger">*</span></label>
+              <input type="text" class="form-control form-control-sm" id="f_description" required>
+              <div class="invalid-feedback small">Description wajib diisi.</div>
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Sequence No <span class="text-danger">*</span></label>
+              <input type="text" class="form-control form-control-sm" id="f_seqNo" required readonly>
+              <div class="form-text small">Controlled by routing</div>
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Status <span class="text-danger">*</span></label>
+              <select class="form-select form-select-sm" id="f_status" required>
+                <option value="">-- Select --</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Waiting">Waiting</option>
+                <option value="Complete">Complete</option>
+                <option value="Pending">Pending</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section mt-3">
+          <div class="form-section-title">
+            <i class="bi bi-diagram-3"></i> Scope &amp; Work Center
+          </div>
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Scope <span class="text-danger">*</span></label>
+              <input type="text" class="form-control form-control-sm" id="f_scope" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Scope Full <span class="text-danger">*</span></label>
+              <textarea class="form-control form-control-sm" id="f_scopeFull" rows="3" required></textarea>
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Operation Code <span class="text-danger">*</span></label>
+              <input type="text" class="form-control form-control-sm" id="f_opCode" required placeholder="e.g. ME101">
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Department <span class="text-danger">*</span></label>
+              <select class="form-select form-select-sm" id="f_department" required>
+                <option value="">-- Select --</option>
+                <option value="ME">ME</option>
+                <option value="WE">WE</option>
+                <option value="QC">QC</option>
+                <option value="AS">AS</option>
+                <option value="CA">CA</option>
+                <option value="FN">FN</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section mt-3">
+          <div class="form-section-title">
+            <i class="bi bi-people"></i> Assignment &amp; Tracking
+          </div>
+          <div class="row g-3">
+            <div class="col-6">
+              <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Working On</label>
+              <input type="text" class="form-control form-control-sm" id="f_workingOn">
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Last Edited By</label>
+              <input type="text" class="form-control form-control-sm" id="f_lastEdited">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section mt-3 d-none edit-advanced-field">
+          <div class="form-section-title">
+            <i class="bi bi-sliders"></i> Advanced Options
+          </div>
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label fw-semibold small text-uppercase text-muted ls-1">IAR</label>
+              <input type="text" class="form-control form-control-sm" id="f_iar" placeholder="IAR Number (optional)">
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Quality Order</label>
+              <input type="text" class="form-control form-control-sm" id="f_qualityOrder" placeholder="Quality Order (optional)">
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Quantity Accepted</label>
+              <input type="number" class="form-control form-control-sm" id="f_qtyAccepted" placeholder="0">
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Quantity Scrapped</label>
+              <input type="number" class="form-control form-control-sm" id="f_qtyScrapped" placeholder="0">
+            </div>
+            <div class="col-12">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="f_hasSequenceBarcode">
+                <label class="form-check-label small" for="f_hasSequenceBarcode">Resource Sequence has barcode</label>
+              </div>
+              <div class="form-text small">Enter the actual barcode value from the source data.</div>
+            </div>
+            <div class="col-12 d-none" id="f_sequenceBarcodeWrap">
+              <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Resource Sequence Barcode</label>
+              <input type="text" class="form-control form-control-sm" id="f_sequenceBarcode" placeholder="e.g. 54989783$5300$30">
+            </div>
+          </div>
+        </div>
+
+        <div id="validationError" class="alert alert-danger d-none small border-0 bg-danger-subtle text-danger mt-3"></div>
+        <div id="validationSuccess" class="alert alert-success d-none small border-0 bg-success-subtle text-success mt-3"></div>
+
+        <div id="processStatus" class="d-none mt-3">
+          <div class="d-flex align-items-center gap-2 small mb-2">
+            <span id="processSpinner" class="spinner-border spinner-border-sm text-primary"></span>
+            <span id="processText" class="fw-medium">Processing...</span>
+          </div>
+          <div class="progress" style="height:6px; border-radius: 10px;">
+            <div id="processBar" class="progress-bar bg-primary" style="width:0%"></div>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 mt-4 pt-3 border-top">
+          <button type="button" class="btn btn-outline-secondary w-50" data-bs-dismiss="offcanvas">Cancel</button>
+          <button type="submit" class="btn btn-primary w-50" id="btnSave">
+            <span id="saveSpinner" class="spinner-border spinner-border-sm d-none me-1"></span>
+            Save Changes
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script type="module" src="/src/pages/wo-detail.js"></script>
+
+  <div class="modal fade" id="revisionHistoryModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold">Scope Revision History</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="revision-context mb-3" id="revisionContext"></div>
+          <div class="table-responsive">
+            <table class="table table-hover align-middle revision-table mb-0">
+              <thead>
+                <tr>
+                  <th>Revision</th>
+                  <th>Date &amp; Time</th>
+                  <th>Edited By</th>
+                  <th>Summary</th>
+                  <th class="text-end">Action</th>
+                </tr>
+              </thead>
+              <tbody id="revisionHistoryBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="revisionDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold" id="revisionDetailTitle">Revision Detail</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body" id="revisionDetailBody"></div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="validation-toast" id="validationToast">
+    <div class="d-flex align-items-start gap-2">
+      <div class="toast-icon"><i class="bi bi-exclamation-triangle-fill"></i></div>
+      <div class="flex-grow-1">
+        <div class="toast-title" id="toastTitle">Validation Error</div>
+        <div class="toast-msg" id="toastMsg">Please complete the required fields.</div>
+      </div>
+      <button class="toast-close" id="toastClose"><i class="bi bi-x-lg"></i></button>
+    </div>
+  </div>
+
+  <div class="op-processing-overlay d-none" id="opProcessingOverlay">
+    <div class="op-processing-box">
+      <div class="spinner-border text-light mb-3" style="width:2.2rem;height:2.2rem;"></div>
+      <div class="op-processing-title">Processing...</div>
+      <div class="op-processing-sub" id="opProcessingSub">Submitting operation</div>
+      <div class="progress mt-3 w-100" style="height:6px;">
+        <div id="opProcessingBar" class="progress-bar progress-bar-striped progress-bar-animated" style="width:0%"></div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

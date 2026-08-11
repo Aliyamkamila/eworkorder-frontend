@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>eWorkOrder | Dashboard</title>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-mark"><i class="bi bi-diagram-3"></i></div>
+        <span class="nav-label">eWorkOrder</span>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-section">Main</div>
+        <a href="/dashboard.html" class="active"><i class="bi bi-grid-1x2"></i><span class="nav-label">Dashboard</span></a>
+        <a href="#"><i class="bi bi-list-task"></i><span class="nav-label">Work Orders</span></a>
+        <a href="#"><i class="bi bi-people"></i><span class="nav-label">Assignments</span></a>
+        <div class="nav-section">System</div>
+        <a href="#"><i class="bi bi-gear"></i><span class="nav-label">Settings</span></a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-box">
+          <div class="avatar-chip">AP</div>
+          <div>
+            <strong>Andi Pratama</strong>
+            <small>Administrator</small>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <div class="main-col">
+      <header class="topbar">
+        <div class="d-flex align-items-center gap-3">
+          <button class="btn-icon" id="toggleSidebar"><i class="bi bi-list"></i></button>
+          <strong class="text-muted">Baker Hughes</strong>
+        </div>
+        <div class="d-flex align-items-center gap-3">
+          <div class="bell-wrap">
+            <button class="btn-icon"><i class="bi bi-bell"></i></button>
+            <span class="dot"></span>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <div class="avatar-chip" style="width:34px;height:34px;">AP</div>
+            <span class="small fw-medium">Andi Pratama</span>
+          </div>
+        </div>
+      </header>
+
+      <main class="content">
+        <div class="page-header d-flex justify-content-between align-items-end flex-wrap gap-2">
+          <div>
+            <h4 class="mb-1">Dashboard</h4>
+            <div class="subtitle">Overview of work orders and assignments</div>
+          </div>
+          <button class="action-btn"><i class="bi bi-plus-lg"></i> New Work Order</button>
+        </div>
+
+        <div class="row g-3 mb-4" id="statCards"></div>
+
+<div class="toolbar">
+          <input type="text" class="form-control" id="searchInput" placeholder="Search WO Number / Description...">
+          <select class="form-select" id="filterDepartment">
+            <option value="">All Departments</option>
+            <option>Machining</option>
+            <option>Casting</option>
+            <option>Finishing</option>
+            <option>Welding</option>
+          </select>
+          <select class="form-select" id="filterPart">
+            <option value="">Part Number</option>
+            <option>PART-1001</option>
+            <option>PART-2001</option>
+            <option>PART-3001</option>
+            <option>PART-4001</option>
+          </select>
+          <select class="form-select" id="filterStatus">
+            <option value="">All Status</option>
+            <option>In Progress</option>
+            <option>Waiting</option>
+            <option>Complete</option>
+          </select>
+        </div>
+
+        <div class="table-wrap">
+          <table class="table wo-table mb-0 align-middle">
+            <thead>
+<tr>
+<th class="ps-3">WO Number</th>
+                <th>Description</th>
+                <th>Status</th>
+                <th>Department</th>
+                <th>Part Number</th>
+                <th>Qty</th>
+                <th>Due Date</th>
+<th>Last Operation</th>
+                <th>Working On</th>
+              </tr>
+            </thead>
+            <tbody id="woTableBody"></tbody>
+          </table>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script type="module" src="/src/pages/dashboard.js"></script>
+</body>
+</html>
