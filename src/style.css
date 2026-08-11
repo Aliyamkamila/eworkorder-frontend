@@ -615,11 +615,16 @@ table.wo-table td:nth-child(12) {
   font-size: 0.8rem;
   letter-spacing: 0.02em;
   font-family: 'SF Mono', 'Fira Code', monospace;
-  display: inline-block;
   white-space: nowrap;
-  /* FIX: lebar minimum tetap supaya box "230" dan "5300" (beda jumlah
-     digit) tidak mengubah lebar kolom OP di baris masing-masing. */
-  min-width: 2.75rem;
+  /* FIX (root cause of the misalignment bug): this class is applied
+     directly to a <td> element. display:inline-block + min-width used to
+     be set here, which took the <td> out of normal table-cell layout -
+     combined with a font-size difference between completed/active rows
+     (see .op-row-selectable above), this made the browser size the cell
+     inconsistently per row instead of respecting the <colgroup> width.
+     A <td> doesn't need display:inline-block or min-width to look like a
+     badge - background/padding/border-radius/text-align work fine as a
+     normal table-cell, and its width is already locked by <colgroup>. */
   text-align: center;
 }
 
@@ -1245,9 +1250,17 @@ table.wo-table td:nth-child(12) {
 .op-complete-steps i { color: var(--success); }
 
 /* Operation List table rows */
+/* FIX (root cause of the misalignment bug): font-size used to be scoped only
+   to .op-row-selectable rows (0.88rem), leaving completed rows on the base
+   0.86rem from `table.wo-table td`. That small per-row font-size difference
+   was enough to change how the browser sized the OP-number cell (which also
+   had display:inline-block - see .op-detail-no below), breaking its
+   table-layout:fixed column width for completed rows only. Font-size is now
+   the SAME for every .op-parent-row regardless of completed/selectable
+   state, so this class of bug can't reappear based on row status. */
+.op-table .op-parent-row td { font-size: 0.88rem; }
 .op-row-selectable { cursor: pointer; }
 .op-row-selectable:hover { background: var(--primary-subtle); }
-.op-row-selectable td { font-size: 0.88rem; }
 
 /* Processing overlay */
 .op-processing-overlay {
@@ -1354,7 +1367,12 @@ table.wo-table td:nth-child(12) {
 .op-parent-row.unmapped-parent:hover td { background: #fef3c7; }
 
 /* Hover left indicator */
-.op-parent-row.op-row-selectable { position: relative; }
+/* FIX: position:relative moved to apply to ALL .op-parent-row (previously
+   only .op-row-selectable had it). This removes another structural CSS
+   difference between completed rows and active rows that contributed to
+   the column-alignment bug. The colored left bar (::before) still only
+   renders for selectable rows, since completed rows aren't clickable. */
+.op-parent-row { position: relative; }
 .op-parent-row.op-row-selectable::before {
   content: ''; position: absolute;
   left: 0; top: 0; bottom: 0;

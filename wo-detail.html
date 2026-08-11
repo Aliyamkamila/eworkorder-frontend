@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>eWorkOrder | Work Order Detail</title>
+  <link rel="stylesheet" href="/src/style.css" />
 </head>
 <body>
   <div class="app-shell">
@@ -88,25 +89,25 @@
             <div class="col-lg-8">
               <div class="table-wrap wo-table-wrap">
                 <table class="table wo-table op-table mb-0 align-middle">
-                  <!--
-                    FIX: colgroup dikembalikan dan lebar dikunci di sini.
-                    table-layout:fixed (lihat CSS) memakai lebar dari <col>
-                    ini secara PASTI di setiap baris, jadi kolom OP / chevron
-                    tidak lagi bergeser antar baris (230 vs 5300 vs 5400 dst).
+                  <!-- 
+                    FINAL COLGROUP:
+                    Total width = 1362px
+                    Semua kolom OP (kolom ke-2) akan sejajar karena 
+                    table-layout:fixed dan colgroup ini.
                   -->
                   <colgroup>
-                    <col style="width:44px">   <!-- 1: expand chevron -->
-                    <col style="width:74px">   <!-- 2: OP number -->
-                    <col style="width:220px">  <!-- 3: Operation Name -->
-                    <col style="width:130px">  <!-- 4: Barcode -->
-                    <col style="width:172px">  <!-- 5: Requirement (fits "CLOCK REQUIRED" pill) -->
-                    <col style="width:132px">  <!-- 6: Status (fits "Not Started" pill) -->
-                    <col style="width:70px">   <!-- 7: Dept -->
-                    <col style="width:92px">   <!-- 8: Machine -->
-                    <col style="width:112px">  <!-- 9: Assigned -->
-                    <col style="width:64px">   <!-- 10: Std Hrs -->
-                    <col style="width:64px">   <!-- 11: Act Hrs -->
-                    <col style="width:100px">  <!-- 12: Actions -->
+                    <col style="width:44px">    <!-- 1: expand chevron -->
+                    <col style="width:74px">    <!-- 2: OP number -->
+                    <col style="width:260px">   <!-- 3: Operation Name -->
+                    <col style="width:130px">   <!-- 4: Barcode -->
+                    <col style="width:172px">   <!-- 5: Requirement -->
+                    <col style="width:170px">   <!-- 6: Status -->
+                    <col style="width:70px">    <!-- 7: Dept -->
+                    <col style="width:92px">    <!-- 8: Machine -->
+                    <col style="width:112px">   <!-- 9: Assigned -->
+                    <col style="width:64px">    <!-- 10: Std Hrs -->
+                    <col style="width:64px">    <!-- 11: Act Hrs -->
+                    <col style="width:110px">   <!-- 12: Actions -->
                   </colgroup>
                   <thead>
                     <tr class="text-nowrap">
@@ -382,6 +383,57 @@
       <div class="op-processing-sub" id="opProcessingSub">Submitting operation</div>
       <div class="progress mt-3 w-100" style="height:6px;">
         <div id="opProcessingBar" class="progress-bar progress-bar-striped progress-bar-animated" style="width:0%"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="inspectionStampModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold">Digital Inspection Stamp</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="inspectionStampForm" novalidate>
+            <div class="row g-2">
+              <div class="col-3">
+                <label class="form-label fw-semibold small text-uppercase text-muted ls-1">IRN No. <span class="text-danger">*</span></label>
+                <input type="text" class="form-control form-control-sm" id="f_irnNo" required placeholder="Enter IRN Number">
+                <div class="invalid-feedback small">IRN No. wajib diisi.</div>
+              </div>
+              <div class="col-3">
+                <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Qty Ordered</label>
+                <input type="number" class="form-control form-control-sm" id="f_qtyOrdered" readonly>
+              </div>
+              <div class="col-3">
+                <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Qty Scrapped / RTV <span class="text-danger">*</span></label>
+                <input type="number" class="form-control form-control-sm" id="f_qtyScrapped" required min="0" placeholder="0">
+                <div class="invalid-feedback small">Qty Scrapped wajib diisi.</div>
+              </div>
+              <div class="col-3">
+                <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Qty Accepted Completed <span class="text-danger">*</span></label>
+                <input type="number" class="form-control form-control-sm" id="f_qtyAccepted" required min="0" placeholder="0">
+                <div class="invalid-feedback small">Qty Accepted Completed wajib diisi.</div>
+              </div>
+              <div class="col-6">
+                <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Inspected / Reviewed By</label>
+                <input type="text" class="form-control form-control-sm" id="f_reviewedBy" readonly>
+              </div>
+              <div class="col-6">
+                <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Inspected / Reviewed Date</label>
+                <input type="text" class="form-control form-control-sm" id="f_reviewedDate" readonly>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" id="btnApplyInspectionStamp">
+            <span id="inspectionSpinner" class="spinner-border spinner-border-sm d-none me-1"></span>
+            Apply Inspection Stamp
+          </button>
+        </div>
       </div>
     </div>
   </div>

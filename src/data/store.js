@@ -5,6 +5,19 @@ const AUTH_KEY = 'ewo_auth'
 const LOG_KEY = 'ewo_log_'
 const REV_KEY = 'ewo_scope_revisions_'
 const SEED_VERSION = 'ewo_seed_v14'
+export function resetAllData() {
+  const APP_KEYS = [
+    WO_KEY,
+    ...Object.keys(seedRouting).map(id => ROUTING_KEY + id),
+    ...Object.keys(seedOperations).map(id => OP_KEY + id),
+    ...Object.keys(seedRouting).map(id => LOG_KEY + id),
+    ...Object.keys(seedRouting).map(id => REV_KEY + id),
+    AUTH_KEY,
+    'selected_wo',
+    SEED_VERSION,
+  ]
+  APP_KEYS.forEach(key => localStorage.removeItem(key))
+}
 
 const seedWorkOrders = [
   {

@@ -2,7 +2,7 @@
 import '../main.js'
 import { Offcanvas, Modal } from 'bootstrap'
 import JsBarcode from 'jsbarcode'
-import { isAuthed, getSelectedWO, getWorkOrder, getRouting, saveRouting, addLog, getOperations, saveOperations, updateWorkOrderStatus, getScopeRevisions, addScopeRevision, buildRevision, getCurrentUser, setCurrentUser, getUserDepartment } from '../data/store.js'
+import { isAuthed, getSelectedWO, getWorkOrder, getRouting, saveRouting, addLog, getOperations, saveOperations, updateWorkOrderStatus, getScopeRevisions, addScopeRevision, buildRevision, getCurrentUser, setCurrentUser, getUserDepartment, seedIfEmpty } from '../data/store.js'
 
 // DOM Elements
 const headerEl = document.getElementById('woHeaderCard')
@@ -29,6 +29,16 @@ const toastClose = document.getElementById('toastClose')
 const hasResourceSequenceBarcodeInput = document.getElementById('f_hasSequenceBarcode')
 const resourceSequenceBarcodeWrap = document.getElementById('f_sequenceBarcodeWrap')
 const resourceSequenceBarcodeInput = document.getElementById('f_sequenceBarcode')
+const inspectionStampModalEl = document.getElementById('inspectionStampModal')
+const inspectionStampModal = inspectionStampModalEl ? new Modal(inspectionStampModalEl) : null
+const fIrnNo = document.getElementById('f_irnNo')
+const fQtyOrdered = document.getElementById('f_qtyOrdered')
+const fQtyScrapped = document.getElementById('f_qtyScrapped')
+const fQtyAccepted = document.getElementById('f_qtyAccepted')
+const fReviewedBy = document.getElementById('f_reviewedBy')
+const fReviewedDate = document.getElementById('f_reviewedDate')
+const btnApplyInspectionStamp = document.getElementById('btnApplyInspectionStamp')
+const inspectionSpinner = document.getElementById('inspectionSpinner')
 
 // State
 let currentAction = 'Add'
@@ -37,16 +47,16 @@ let routingData = []
 let woId = null
 let prevScopeData = { scope: '', scopeFull: '' }
 let currentRevisionSeq = null
+let pendingInspectionOpIndex = -1
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
+  seedIfEmpty()
   if (!isAuthed()) {
     window.location.href = '/login.html'
     return
   }
 
-  // Set the current logged-in user for revision tracking (prototype uses the
-  // admin shown in the sidebar; can be wired to the real auth account later).
   setCurrentUser('Andi Pratama')
 
   woId = getSelectedWO()
@@ -78,7 +88,6 @@ async function loadWorkOrder(woId) {
       return
     }
 
-    // Compute progress & active operation from operations
     const ops = getOperations(woId) || []
     const completed = ops.filter(o => o.status === 'Completed').length
     const total = ops.length
@@ -162,7 +171,7 @@ async function loadWorkOrder(woId) {
   }
 }
 
-// Load Routing Data (stored for the merged Operations view)
+// Load Routing Data
 async function loadRouting(id) {
   try {
     const data = await getRouting(id)
@@ -172,8 +181,6 @@ async function loadRouting(id) {
   }
 }
 
-// Returns the scope text for display: prefer the full description,
-// fall back to the short scope when scopeFull is not provided.
 function getScopeText(short, full) {
   if (full && full.trim()) return full.trim()
   return short || '-'
@@ -233,7 +240,6 @@ function getBarcodeMetadata(entity, fallbackType = '') {
     return { exists: raw.exists === true && !!value, type, value }
   }
 
-  // Legacy frontend prototype compatibility (before barcode metadata shape).
   if (fallbackType === 'RESOURCE_SEQUENCE') {
     const legacyValue = normalizeBarcodeValue(entity?.sequenceBarcode)
     return { exists: !!legacyValue, type: 'RESOURCE_SEQUENCE', value: legacyValue }
@@ -268,16 +274,13 @@ function syncResourceSequenceBarcodeField() {
 }
 
 // ====================== ROUTING SEQUENCE MAPPING ======================
-// Attach routing sequences to Operation List records by matching the routing
-// operation's description against the operations-list operation's name.
-// Routing sequences that cannot be confidently matched are kept visible under
-// an "Unassigned" group so no routing data is lost.
-// NOTE: This mapping is intentionally isolated so it can be replaced with a
-// direct ID-based link once the operation numbering is aligned between the
-// routing and operations data sources.
+let unmappedSequences = []
+
 function mapRoutingToOperations(ops, routing) {
   const normalized = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
   const mapped = ops.map(op => ({ ...op, sequences: [], matched: false }))
+
+  unmappedSequences = []
 
   ;(routing || []).forEach(rOp => {
     const rName = normalized(rOp.description || rOp.opNo || '')
@@ -300,9 +303,6 @@ function mapRoutingToOperations(ops, routing) {
   return mapped
 }
 
-// Unmatched sequences that could not be attached to any operation.
-let unmappedSequences = []
-
 // ====================== SCOPE REVISION HISTORY ======================
 const revisionHistoryModalEl = document.getElementById('revisionHistoryModal')
 const revisionHistoryModal = revisionHistoryModalEl ? new Modal(revisionHistoryModalEl) : null
@@ -313,7 +313,6 @@ const revisionHistoryBody = document.getElementById('revisionHistoryBody')
 const revisionDetailTitle = document.getElementById('revisionDetailTitle')
 const revisionDetailBody = document.getElementById('revisionDetailBody')
 
-// Open revision history modal for a specific sequence
 function openRevisionHistory(opIdx, seqIdx) {
   const op = routingData[opIdx]
   if (!op) return
@@ -364,7 +363,6 @@ function openRevisionHistory(opIdx, seqIdx) {
   if (revisionHistoryModal) revisionHistoryModal.show()
 }
 
-// Open revision detail modal
 function openRevisionDetail(rev) {
   if (!rev) return
   revisionDetailTitle.textContent = `${rev.revisionNo || 'Revision'} · OP ${rev.opNo || ''} Sequence ${rev.seqNo || ''}`
@@ -407,14 +405,12 @@ function openRevisionDetail(rev) {
   if (revisionDetailModal) revisionDetailModal.show()
 }
 
-// Escape HTML to avoid injection
 function escapeHtml(str) {
   const d = document.createElement('div')
   d.textContent = str
   return d.innerHTML
 }
 
-// Build a sentence/line-level comparison between previous and updated scope
 function buildComparison(prev, next) {
   if (!prev && !next) return '<div class="text-muted small">No changes.</div>'
   const prevParts = splitScope(prev)
@@ -440,22 +436,17 @@ function buildComparison(prev, next) {
   return rows.join('')
 }
 
-// Split scope text into sentences/lines for comparison
 function splitScope(text) {
   if (!text) return []
   return text.split(/(?<=[.!?])\s+|\n+/).map(s => s.trim()).filter(Boolean)
 }
 
-// Auto-generate a concise change summary from the previous vs updated scope.
 function buildChangeSummary(prevFull, prevShort, newFull, newShort) {
   const prev = (prevFull && prevFull.trim()) || (prevShort && prevShort.trim()) || ''
   const next = (newFull && newFull.trim()) || (newShort && newShort.trim()) || ''
   if (prev === next) return 'Scope updated'
-  // If the previous scope was empty, treat as scope added
   if (!prev) return 'Scope added'
-  // If the new scope is empty, treat as scope removed
   if (!next) return 'Scope removed'
-  // Find the first differing sentence to describe the change
   const prevParts = splitScope(prev)
   const nextParts = splitScope(next)
   for (let i = 0; i < nextParts.length; i++) {
@@ -469,7 +460,7 @@ function buildChangeSummary(prevFull, prevShort, newFull, newShort) {
   return 'Scope updated'
 }
 
-// Handle Action Click (Edit/Delete a sequence within an operation)
+// Handle Action Click
 function handleActionClick(action, opIdx, seqIdx) {
   const op = routingData[opIdx]
   if (!op) return
@@ -478,12 +469,10 @@ function handleActionClick(action, opIdx, seqIdx) {
   currentAction = action
   editingRow = { opIdx, seqIdx }
 
-  // Reset delete warning
   const deleteWarning = document.getElementById('deleteWarning')
   if (deleteWarning) deleteWarning.style.display = 'none'
 
   if (action === 'edit') {
-    // Capture the previous scope values so we can store them in a revision
     prevScopeData = {
       scope: item ? (item.scope || '') : '',
       scopeFull: item ? (item.scopeFull || '') : '',
@@ -509,7 +498,6 @@ function handleActionClick(action, opIdx, seqIdx) {
     document.getElementById('panelTitle').textContent = `Edit Sequence ${item ? item.seqNo : ''}`
     document.getElementById('panelSubtitle').textContent = 'Modify sequence details and scope'
 
-    // Permission: only ME department users can edit scope
     const userDept = getUserDepartment(getCurrentUser())
     const canEditScope = userDept === 'ME'
     const scopeFields = ['f_scope', 'f_scopeFull']
@@ -590,7 +578,6 @@ function handleActionClick(action, opIdx, seqIdx) {
   offcanvas.show()
 }
 
-// Apply Closing Stamp to a final sequence (frontend prototype only)
 function applyClosingStamp(opIdx, seqIdx) {
   const newData = [...routingData]
   if (seqIdx >= 0 && newData[opIdx] && newData[opIdx].sequences[seqIdx]) {
@@ -613,7 +600,6 @@ function applyClosingStamp(opIdx, seqIdx) {
   }
 }
 
-// Simulate frontend-only save pipeline for prototype interactions.
 function runProcessSimulation(message, onDone) {
   processStatus.classList.remove('d-none')
   processSpinner.classList.remove('d-none')
@@ -650,11 +636,10 @@ function runProcessSimulation(message, onDone) {
   run()
 }
 
-// Form Submit Handler (Edit / Delete sequence)
+// Form Submit Handler
 form.addEventListener('submit', async (e) => {
   e.preventDefault()
 
-  // Non-ME users have read-only access; close offcanvas without saving
   if (currentAction === 'edit' && getUserDepartment(getCurrentUser()) !== 'ME') {
     offcanvas.hide()
     form.reset()
@@ -664,7 +649,6 @@ form.addEventListener('submit', async (e) => {
   }
 
   if (currentAction === 'delete' && editingRow !== null) {
-    // Confirm delete sequence
     const { opIdx, seqIdx } = editingRow
     const newData = [...routingData]
     if (seqIdx >= 0) {
@@ -690,7 +674,6 @@ form.addEventListener('submit', async (e) => {
     return
   }
 
-  // Edit sequence
   if (currentAction === 'edit' && editingRow !== null) {
     const { opIdx, seqIdx } = editingRow
     const seqNo = document.getElementById('f_seqNo').value.trim()
@@ -766,8 +749,6 @@ form.addEventListener('submit', async (e) => {
     routingData = newData
     refreshOperationsView()
 
-    // ===== SCOPE REVISION TRACKING =====
-    // Only create a new revision when the scope actually changed on save.
     const scopeChanged =
       (prevScopeData.scope || '') !== scope ||
       (prevScopeData.scopeFull || '') !== scopeFull
@@ -784,7 +765,6 @@ form.addEventListener('submit', async (e) => {
         newScopeFull: scopeFull,
       })
       addScopeRevision(woId, revision)
-      // Update last edited by the current editor (from current user)
       newData[opIdx].sequences[seqIdx] = {
         ...newData[opIdx].sequences[seqIdx],
         lastEdited: getCurrentUser(),
@@ -811,7 +791,7 @@ form.addEventListener('submit', async (e) => {
 hasResourceSequenceBarcodeInput?.addEventListener('change', syncResourceSequenceBarcodeField)
 syncResourceSequenceBarcodeField()
 
-// Module tab switching (single Operations view)
+// Module tab switching
 document.querySelectorAll('.module-nav a[data-tab]').forEach(tab => {
   tab.addEventListener('click', (e) => {
     e.preventDefault()
@@ -837,13 +817,11 @@ const nextOpModal = nextOpModalEl ? new Modal(nextOpModalEl) : null
 const yesNextOpBtn = document.getElementById('yesNextOpBtn')
 const noNextOpBtn = document.getElementById('noNextOpBtn')
 
-// State
 let operations = []
 let selectedOpIndex = -1
 let pendingNextSelection = -1
 let opSearchQuery = ''
 
-// DOM Elements for search
 const opSearchInput = document.getElementById('opSearchInput')
 if (opSearchInput) {
   opSearchInput.addEventListener('input', (e) => {
@@ -852,12 +830,10 @@ if (opSearchInput) {
   })
 }
 
-// Load Operation List
 async function loadOperationList(id) {
   try {
     let ops = getOperations(id) || []
     if (ops.length === 0) {
-      // Fallback: derive from routing if no operation seed exists
       const routing = getRouting(id) || []
       ops = routing.map((op, i) => ({
         opNo: String((parseInt(op.opNo) || (i + 1) * 100)),
@@ -873,13 +849,11 @@ async function loadOperationList(id) {
       }))
     }
 
-    // Attach routing sequences to the operation records (by name matching).
     unmappedSequences = []
     operations = mapRoutingToOperations(ops, routingData)
 
     deriveActiveOperation()
     renderOperationList()
-    // Select the current operation by default
     const activeIdx = operations.findIndex(o => o.active)
     if (activeIdx >= 0) {
       selectOperation(activeIdx)
@@ -889,7 +863,6 @@ async function loadOperationList(id) {
   }
 }
 
-// Derive active operation (first non-completed) and progress
 function deriveActiveOperation() {
   const total = operations.length
   let completed = 0
@@ -915,7 +888,7 @@ function formatLastEdited(seq) {
   return `${initials} · ${dateStr}, ${timeStr}`
 }
 
-// Render Operations table (parent = Operation, expandable child = Sequences)
+// ====================== RENDER OPERATION LIST ======================
 function renderOperationList() {
   let displayOps = operations
   if (opSearchQuery) {
@@ -938,7 +911,6 @@ function renderOperationList() {
     return
   }
 
-  // Sort by opNo ascending
   const sorted = [...displayOps].sort((a, b) => (parseInt(a.opNo) || 0) - (parseInt(b.opNo) || 0))
   const { total, completed, activeIdx } = deriveActiveOperation()
   const pct = total ? Math.round((completed / total) * 100) : 0
@@ -955,14 +927,17 @@ function renderOperationList() {
     const seqs = op.sequences || []
     const seqCount = seqs.length
     const opBarcodeValue = getOperationBarcodeValue(op)
+    const isExpanded = false // Default collapsed
 
-    // Parent row - ALWAYS 12 columns
+    // PARENT ROW - 12 columns
     html += `
       <tr class="op-parent-row ${isCompleted ? '' : 'op-row-selectable'}" data-index="${i}">
         <td class="ps-4">
-          <button class="btn btn-sm btn-link p-0 op-expand-btn" data-op-index="${i}" title="Expand / collapse">
-            <i class="bi bi-chevron-right op-expand-icon"></i>
-          </button>
+          ${seqCount > 0 ? `
+            <button class="btn btn-sm btn-link p-0 op-expand-btn" data-op-index="${i}" title="Expand / collapse">
+              <i class="bi bi-chevron-right op-expand-icon"></i>
+            </button>
+          ` : '<span class="text-muted" style="opacity:0.3;">—</span>'}
         </td>
         <td class="ps-1 fw-semibold op-detail-no">${op.opNo || ''}</td>
         <td>
@@ -975,12 +950,15 @@ function renderOperationList() {
         <td>${reqType === 'Clock Required'
               ? '<span class="req-badge req-clock"><i class="bi bi-clock"></i> Clock Required</span>'
               : '<span class="req-badge req-stamp"><i class="bi bi-patch-check"></i> Stamp Only</span>'}</td>
-        <td><span class="badge ${statusBadge}"><span class="status-dot ${statusClass}"></span>${statusText}</span></td>
+        <td>
+          <span class="badge ${statusBadge}"><span class="status-dot ${statusClass}"></span>${statusText}</span>
+          ${op.inspectionStamp ? '<span class="stamp-cap ms-1" title="Inspection Stamped"><i class="bi bi-patch-check-fill"></i></span>' : ''}
+        </td>
         <td><span class="dept-chip">${op.department || '<span class="text-muted">-</span>'}</span></td>
         <td class="d-none d-lg-table-cell"><code class="machine-code">${op.machine || '-'}</code></td>
         <td class="d-none d-lg-table-cell">${op.assignedEmployee || '<span class="text-muted">-</span>'}</td>
         <td class="d-none d-xl-table-cell text-center">${op.standardHours ?? '-'}</td>
-        <td class="d-none d-xl-table-cell text-center">${op.actualHours ?? 0}</td>
+        <td class="d-none d-xl-table-cell text-center">${op.actualHours || '-'}</td>
         <td class="text-end pe-3">
           <button class="btn btn-sm btn-outline-primary" data-view="${i}">
             <i class="bi bi-eye"></i> View
@@ -989,7 +967,7 @@ function renderOperationList() {
       </tr>
     `
 
-    // Child rows - USE THE SAME 12 COLUMN STRUCTURE as parent rows
+    // CHILD ROWS (sequences) - SAME 12 COLUMNS, no colspan!
     if (seqs.length) {
       seqs.forEach((seq, seqIdx) => {
         const seqStatusColor = getStatusBadgeColor(seq.status || 'Pending')
@@ -997,23 +975,35 @@ function renderOperationList() {
         const seqBarcode = getResourceSequenceBarcode(seq)
         const lastEditedDisplay = formatLastEdited(seq)
         const isFinal = !!seq.closingStampAvailable
-        
+
         html += `
           <tr class="op-seq-row" data-op-index="${i}" style="display:none;">
-            <td class="ps-4">
-              <span class="text-muted small">${seq.seqNo || ''}</span>
+            <td class="ps-4 text-center">
+              <span class="text-muted small" style="opacity:0.4;">└</span>
             </td>
-            <td class="ps-1 text-muted small">${seq.opCode || '-'}</td>
+            <td class="ps-1 text-muted small"></td>
             <td>
-              <div class="scope-cell">
+              <div class="scope-cell d-flex align-items-center gap-2">
+                <span class="seq-num">${seq.seqNo || ''}</span>
                 <span class="scope-title small">${getScopeText(seq.scope, seq.scopeFull)}</span>
               </div>
             </td>
             <td>${seqBarcode.exists ? buildBarcodeMarkup(seqBarcode.value) : '<span class="text-muted">-</span>'}</td>
-            <td><span class="badge bg-${seqStatusColor}"><span class="status-dot ${seqStatusClass}"></span>${seq.status || 'Pending'}</span></td>
+            <td>
+              <span class="badge bg-${seqStatusColor}"><span class="status-dot ${seqStatusClass}"></span>${seq.status || 'Pending'}</span>
+              ${seq.closingStamp ? '<span class="stamp-cap ms-1" title="Stamped"><i class="bi bi-patch-check-fill"></i></span>' : ''}
+            </td>
             <td><span class="dept-chip">${seq.department || '-'}</span></td>
             <td class="d-none d-lg-table-cell"><code class="machine-code">${seq.machine || '-'}</code></td>
             <td class="d-none d-lg-table-cell">${seq.workingOn || '-'}</td>
+            <td class="d-none d-xl-table-cell text-center">
+              <div class="last-edited-cell">
+                <span class="text-muted">${lastEditedDisplay}</span>
+                <button class="btn btn-link btn-sm p-0 revision-link" data-r-index="${seq.routingOpIndex}" data-r-seq-index="${seq.rSeqIndex}" title="View Revision History">
+                  <i class="bi bi-clock-history me-1"></i>View
+                </button>
+              </div>
+            </td>
             <td class="d-none d-xl-table-cell text-center">-</td>
             <td class="d-none d-xl-table-cell text-center">-</td>
             <td class="text-end pe-3">
@@ -1046,29 +1036,42 @@ function renderOperationList() {
         </td>
       </tr>
     `
-    
+
     unmappedSequences.forEach((seq, seqIdx) => {
       const seqStatusColor = getStatusBadgeColor(seq.status || 'Pending')
       const seqStatusClass = seq.status === 'Completed' ? 'completed' : (seq.status === 'In Progress' ? 'active' : 'pending')
       const seqBarcode = getResourceSequenceBarcode(seq)
       const isFinal = !!seq.closingStampAvailable
-      
+      const lastEditedDisplay = formatLastEdited(seq)
+
       html += `
         <tr class="op-seq-row" data-op-index="-1" style="display:none;">
-          <td class="ps-4">
-            <span class="text-muted small">${seq.seqNo || ''}</span>
+          <td class="ps-4 text-center">
+            <span class="text-muted small" style="opacity:0.4;">└</span>
           </td>
-          <td class="ps-1 text-muted small">${seq.opCode || '-'}</td>
+          <td class="ps-1 text-muted small"></td>
           <td>
-            <div class="scope-cell">
+            <div class="scope-cell d-flex align-items-center gap-2">
+              <span class="seq-num">${seq.seqNo || ''}</span>
               <span class="scope-title small">${getScopeText(seq.scope, seq.scopeFull)}</span>
             </div>
           </td>
           <td>${seqBarcode.exists ? buildBarcodeMarkup(seqBarcode.value) : '<span class="text-muted">-</span>'}</td>
-          <td><span class="badge bg-${seqStatusColor}"><span class="status-dot ${seqStatusClass}"></span>${seq.status || 'Pending'}</span></td>
+          <td>
+            <span class="badge bg-${seqStatusColor}"><span class="status-dot ${seqStatusClass}"></span>${seq.status || 'Pending'}</span>
+            ${seq.closingStamp ? '<span class="stamp-cap ms-1" title="Stamped"><i class="bi bi-patch-check-fill"></i></span>' : ''}
+          </td>
           <td><span class="dept-chip">${seq.department || '-'}</span></td>
           <td class="d-none d-lg-table-cell"><code class="machine-code">${seq.machine || '-'}</code></td>
           <td class="d-none d-lg-table-cell">${seq.workingOn || '-'}</td>
+          <td class="d-none d-xl-table-cell text-center">
+            <div class="last-edited-cell">
+              <span class="text-muted">${lastEditedDisplay}</span>
+              <button class="btn btn-link btn-sm p-0 revision-link" data-r-index="${seq.routingOpIndex}" data-r-seq-index="${seq.rSeqIndex}" title="View Revision History">
+                <i class="bi bi-clock-history me-1"></i>View
+              </button>
+            </div>
+          </td>
           <td class="d-none d-xl-table-cell text-center">-</td>
           <td class="d-none d-xl-table-cell text-center">-</td>
           <td class="text-end pe-3">
@@ -1086,7 +1089,7 @@ function renderOperationList() {
   opTableBody.innerHTML = html
   renderGeneratedBarcodes(opTableBody)
 
-  // Expand / collapse sequences - now toggles multiple child rows
+  // Expand / collapse sequences
   opTableBody.querySelectorAll('.op-expand-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation()
@@ -1101,7 +1104,7 @@ function renderOperationList() {
     })
   })
 
-  // Row click / View -> open detail panel
+  // Row click / View
   opTableBody.querySelectorAll('.op-parent-row').forEach(tr => {
     tr.addEventListener('click', (e) => {
       if (e.target.closest('[data-view]') || e.target.closest('.op-expand-btn')) return
@@ -1111,7 +1114,7 @@ function renderOperationList() {
       }
     })
   })
-  
+
   opTableBody.querySelectorAll('[data-view]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation()
@@ -1119,7 +1122,7 @@ function renderOperationList() {
     })
   })
 
-  // Sequence edit / delete
+  // Sequence action buttons
   opTableBody.querySelectorAll('.action-seq-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation()
@@ -1130,7 +1133,7 @@ function renderOperationList() {
     })
   })
 
-  // View revision history for a sequence
+  // Revision history links
   opTableBody.querySelectorAll('.revision-link').forEach(link => {
     link.addEventListener('click', (e) => {
       e.stopPropagation()
@@ -1141,7 +1144,6 @@ function renderOperationList() {
   })
 }
 
-// Select an operation -> open detail panel
 function selectOperation(idx) {
   selectedOpIndex = idx
   const op = operations[idx]
@@ -1149,14 +1151,19 @@ function selectOperation(idx) {
   renderDetailPanel(op)
 }
 
-// Render Operation Detail Panel (RIGHT PANEL) — header + workflow action only
 function renderDetailPanel(op) {
   const isCompleted = op.status === 'Completed'
   const reqType = op.requirementType === 'Stamp Only' ? 'Stamp Only' : 'Clock Required'
 
   const steps = isCompleted
-    ? '<div class="op-done-msg"><i class="bi bi-check-circle-fill"></i> Operation completed.</div>'
+    ? `<div class="op-done-msg"><i class="bi bi-check-circle-fill"></i> Operation completed.</div>
+       ${!op.inspectionStamp ? `<button class="btn btn-sm btn-outline-primary mt-2" data-flow="applyInspectionStamp"><i class="bi bi-patch-check me-1"></i>Apply Inspection Stamp</button>` : ''}`
     : renderActionArea(op)
+
+  const inspectionStamp = op.inspectionStamp ? buildInspectionStampHTML(op.inspectionStamp) : ''
+  const inspectionStampSection = isCompleted
+    ? (inspectionStamp || '<div class="text-muted small">No inspection stamp applied yet.</div>')
+    : ''
 
   const reqBadge = reqType === 'Clock Required'
     ? '<span class="req-badge req-clock"><i class="bi bi-clock"></i> Clock Required</span>'
@@ -1180,18 +1187,15 @@ function renderDetailPanel(op) {
       <div class="section-label">Workflow Actions</div>
       <div id="opActionArea">${steps}</div>
     </div>
+    ${inspectionStampSection ? `<div class="op-detail-section"><div class="section-label">Inspection Stamp</div>${inspectionStampSection}</div>` : ''}
   `
 }
 
-// Render workflow action buttons based on requirement type — MES-style stepper
 function renderActionArea(op) {
   const reqType = op.requirementType || 'Clock Required'
-
-  // Browser state for the flow (session-based)
   const flowKey = `op_flow_${woId}_${op.opNo}`
   const flow = JSON.parse(sessionStorage.getItem(flowKey) || '{}')
 
-  // Define the workflow steps
   const steps = reqType === 'Clock Required'
     ? [
         { key: 'clockIn', label: 'Clock In', icon: 'bi-box-arrow-right', action: 'clockIn' },
@@ -1206,11 +1210,9 @@ function renderActionArea(op) {
         { key: 'save', label: 'Save', icon: 'bi-send', action: 'save' },
       ]
 
-  // Determine current step index (first not-done step)
   let currentIdx = steps.findIndex(s => !flow[s.key])
   if (currentIdx === -1) currentIdx = steps.length - 1
 
-  // Build the stepper header (horizontal progress indicator)
   const stepper = `
     <div class="op-stepper">
       ${steps.map((s, i) => {
@@ -1228,7 +1230,6 @@ function renderActionArea(op) {
     </div>
   `
 
-  // Build the action card for the current step
   const currentStep = steps[currentIdx]
   const actionCard = `
     <div class="op-action-card">
@@ -1243,7 +1244,6 @@ function renderActionArea(op) {
     </div>
   `
 
-  // Show completed steps summary
   const doneSteps = steps.filter(s => flow[s.key])
   const doneSummary = doneSteps.length > 0 ? `
     <div class="op-done-steps">
@@ -1255,16 +1255,25 @@ function renderActionArea(op) {
     </div>
   ` : ''
 
+  const stampVisual = flow.stamp ? `
+    <div class="op-stamp-area">
+      <div class="op-stamp">
+        <div class="stamp-center">A</div>
+        <div class="stamp-bottom">${escapeHtml(String(flow.stamp))}</div>
+      </div>
+    </div>
+  ` : ''
+
   return `
     <div class="op-flow">
       ${stepper}
       ${doneSummary}
+      ${stampVisual}
       ${actionCard}
     </div>
   `
 }
 
-// Helper: step description text
 function getStepDescription(key) {
   const desc = {
     clockIn: 'Start tracking time for this operation',
@@ -1300,36 +1309,45 @@ opDetailPanel.addEventListener('click', (e) => {
     sessionStorage.setItem(flowKey, JSON.stringify(flow))
     renderDetailPanel(op)
   } else if (action === 'stamp') {
-    flow.stamp = now
+    const stampNow = new Date()
+    flow.stamp = stampNow.toLocaleString('en-GB', {
+      day: '2-digit', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+      timeZone: 'UTC'
+    })
     sessionStorage.setItem(flowKey, JSON.stringify(flow))
     renderDetailPanel(op)
   } else if (action === 'save') {
     saveOperation()
+  } else if (action === 'applyInspectionStamp') {
+    pendingInspectionOpIndex = selectedOpIndex
+    showInspectionStampModal(op)
   }
 })
 
-// Save Operation: update progress -> ask Next Operation?
 function saveOperation() {
   const op = operations[selectedOpIndex]
   if (!op) return
 
-  // Determine if this is the last remaining operation
   const remaining = operations.filter(o => o.status !== 'Completed').length
   const isLastOp = remaining <= 1
 
-  // Show processing overlay
+  if (isLastOp) {
+    pendingInspectionOpIndex = selectedOpIndex
+    showInspectionStampModal(op)
+    return
+  }
+
   opProcessingOverlay.classList.remove('d-none')
   opProcessingSub.textContent = `Saving operation ${op.opNo}`
   opProcessingBar.style.width = '0%'
 
-  // Normal save steps
   const baseSteps = [
     { w: 20, label: 'Saving operation data...' },
     { w: 45, label: 'Updating progress...' },
     { w: 70, label: 'Refreshing progress bar...' },
     { w: 85, label: 'Updating operation status...' },
   ]
-  // Final WO completion pipeline (only when last operation is saved)
   const finalSteps = [
     { w: 90, label: 'Work Order Complete ✓' },
     { w: 94, label: 'Update WO Status = COMPLETE' },
@@ -1341,30 +1359,25 @@ function saveOperation() {
   let i = 0
   const run = () => {
     if (i >= steps.length) {
-      // Finalize operation
       op.status = 'Completed'
       op.actualHours = (op.actualHours || 0) + 0.5
       op.active = false
       saveOperations(woId, operations)
-      // Clear flow
       sessionStorage.removeItem(`op_flow_${woId}_${op.opNo}`)
       addLog(woId, { user: 'Admin', action: 'Complete', detail: `Operation ${op.opNo} ${op.name} completed` })
 
-      // Check if another operation exists
       const nextActive = operations.findIndex(o => o.status !== 'Completed')
       operations.forEach((o, idx) => {
         o.active = (idx === nextActive)
       })
       saveOperations(woId, operations)
 
-      // Check if all done
       const allDone = operations.every(o => o.status === 'Completed')
       if (allDone) {
         updateWorkOrderStatus(woId, 'Complete')
-        addLog(woId, { user: 'System', action: 'Complete', detail: 'Work Order marked COMPLETE. Digital WO package generated and archived in frontend demo flow.' })
+        addLog(woId, { user: 'System', action: 'Complete', detail: 'Work Order marked COMPLETE.' })
       }
 
-      // Refresh progress & table & header
       deriveActiveOperation()
       renderOperationList()
       loadWorkOrder(woId)
@@ -1373,7 +1386,6 @@ function saveOperation() {
       setTimeout(() => {
         opProcessingOverlay.classList.add('d-none')
         if (allDone) {
-          // Display completion pipeline
           showToast('All Operations Completed', 'All operations completed successfully.', 'success')
           opDetailPanel.innerHTML = `
             <div class="op-all-done">
@@ -1384,12 +1396,10 @@ function saveOperation() {
                 <div><i class="bi bi-check-circle-fill"></i> Work Order Status = COMPLETE</div>
                 <div><i class="bi bi-check-circle-fill"></i> Generate Digital Work Order Package</div>
                 <div><i class="bi bi-check-circle-fill"></i> Archive Documents</div>
-                <div><i class="bi bi-check-circle-fill"></i> Backend integration pending (frontend prototype)</div>
               </div>
             </div>
           `
         } else {
-          // Ask: Next Operation?
           if (nextOpModal) nextOpModal.show()
         }
       }, 500)
@@ -1404,21 +1414,196 @@ function saveOperation() {
   run()
 }
 
-// Next Operation? modal handlers
+// ====================== INSPECTION STAMP ======================
+function showInspectionStampModal(op) {
+  const wo = getWorkOrder(woId)
+  fIrnNo.value = ''
+  fQtyOrdered.value = wo ? (wo.qty || '') : ''
+  fQtyScrapped.value = ''
+  fQtyAccepted.value = ''
+  fReviewedBy.value = getCurrentUser()
+  fReviewedDate.value = new Date().toLocaleString('en-GB', {
+    day: '2-digit', month: 'short', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+    timeZone: 'UTC'
+  })
+
+  const formEl = document.getElementById('inspectionStampForm')
+  formEl?.classList.remove('was-validated')
+  formEl?.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'))
+
+  if (inspectionStampModal) inspectionStampModal.show()
+}
+
+function buildInspectionStampHTML(stamp) {
+  if (!stamp) return ''
+  const reviewedDate = stamp.reviewedDateDisplay || new Date(stamp.reviewedDate).toLocaleString('en-GB', {
+    day: '2-digit', month: 'short', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+    timeZone: 'UTC'
+  })
+  return `
+    <div class="inspection-stamp-area">
+      <div class="inspection-stamp">
+        <div class="stamp-irn">IRN: ${escapeHtml(String(stamp.irnNo || ''))}</div>
+        <div class="stamp-qty-row">
+          <span>Ordered: <span class="stamp-qty-value">${stamp.qtyOrdered ?? '-'}</span></span>
+          <span>Scrapped: <span class="stamp-qty-value">${stamp.qtyScrapped ?? '-'}</span></span>
+        </div>
+        <div class="stamp-qty-row">
+          <span>Accepted: <span class="stamp-qty-value">${stamp.qtyAccepted ?? '-'}</span></span>
+        </div>
+        <div class="stamp-reviewer">By: ${escapeHtml(String(stamp.reviewedBy || ''))}</div>
+        <div class="stamp-date">${escapeHtml(String(reviewedDate))}</div>
+      </div>
+    </div>
+  `
+}
+
+async function applyInspectionStamp() {
+  const formEl = document.getElementById('inspectionStampForm')
+  if (!formEl) return
+
+  formEl.classList.add('was-validated')
+
+  const irnNo = fIrnNo.value.trim()
+  const qtyScrapped = parseInt(fQtyScrapped.value) || 0
+  const qtyAccepted = parseInt(fQtyAccepted.value) || 0
+  const qtyOrdered = parseInt(fQtyOrdered.value) || 0
+
+  if (!irnNo) {
+    showToast('Validation Error', 'IRN No. is required.', 'error')
+    fIrnNo.focus()
+    return
+  }
+  if (isNaN(qtyScrapped) || qtyScrapped < 0) {
+    showToast('Validation Error', 'Qty Scrapped / RTV must be a valid number.', 'error')
+    fQtyScrapped.focus()
+    return
+  }
+  if (isNaN(qtyAccepted) || qtyAccepted < 0) {
+    showToast('Validation Error', 'Qty Accepted Completed must be a valid number.', 'error')
+    fQtyAccepted.focus()
+    return
+  }
+
+  const op = operations[pendingInspectionOpIndex]
+  if (!op) return
+
+  op.inspectionStamp = {
+    irnNo,
+    qtyOrdered,
+    qtyScrapped,
+    qtyAccepted,
+    reviewedBy: getCurrentUser(),
+    reviewedDate: new Date().toISOString(),
+    reviewedDateDisplay: fReviewedDate.value,
+  }
+
+  if (inspectionStampModal) inspectionStampModal.hide()
+
+  await completeOperationWithSimulation(op)
+  renderDetailPanel(op)
+}
+
+async function completeOperationWithSimulation(op) {
+  opProcessingOverlay.classList.remove('d-none')
+  opProcessingSub.textContent = `Completing operation ${op.opNo}`
+  opProcessingBar.style.width = '0%'
+
+  const steps = [
+    { w: 20, label: 'Saving operation data...' },
+    { w: 45, label: 'Updating progress...' },
+    { w: 70, label: 'Refreshing progress bar...' },
+    { w: 85, label: 'Updating operation status...' },
+    { w: 90, label: 'Work Order Complete ✓' },
+    { w: 94, label: 'Update WO Status = COMPLETE' },
+    { w: 97, label: 'Generate Digital Work Order Package' },
+    { w: 100, label: 'Archive Documents (frontend demo)' },
+  ]
+
+  await new Promise(resolve => {
+    let i = 0
+    const run = () => {
+      if (i >= steps.length) {
+        op.status = 'Completed'
+        op.actualHours = (op.actualHours || 0) + 0.5
+        op.active = false
+        saveOperations(woId, operations)
+        sessionStorage.removeItem(`op_flow_${woId}_${op.opNo}`)
+        addLog(woId, { user: getCurrentUser(), action: 'Inspection Stamp', detail: `Inspection stamp applied to OP ${op.opNo} - IRN: ${op.inspectionStamp?.irnNo || '-'}` })
+
+        const nextActive = operations.findIndex(o => o.status !== 'Completed')
+        operations.forEach((o, idx) => {
+          o.active = (idx === nextActive)
+        })
+        saveOperations(woId, operations)
+
+        const allDone = operations.every(o => o.status === 'Completed')
+        if (allDone) {
+          updateWorkOrderStatus(woId, 'Complete')
+          addLog(woId, { user: 'System', action: 'Complete', detail: 'Work Order marked COMPLETE.' })
+        }
+
+        deriveActiveOperation()
+        renderOperationList()
+        loadWorkOrder(woId)
+        pendingNextSelection = nextActive
+
+        setTimeout(() => {
+          opProcessingOverlay.classList.add('d-none')
+          if (allDone) {
+            showToast('All Operations Completed', 'All operations completed successfully.', 'success')
+            opDetailPanel.innerHTML = `
+              <div class="op-all-done">
+                <i class="bi bi-check-circle-fill fs-2 text-success"></i>
+                <h5 class="mt-2 mb-1">Work Order Complete</h5>
+                <p class="text-muted mb-0">All operations completed successfully.</p>
+                <div class="op-complete-steps">
+                  <div><i class="bi bi-check-circle-fill"></i> Work Order Status = COMPLETE</div>
+                  <div><i class="bi bi-check-circle-fill"></i> Generate Digital Work Order Package</div>
+                  <div><i class="bi bi-check-circle-fill"></i> Archive Documents</div>
+                </div>
+              </div>
+            `
+          } else {
+            if (nextOpModal) nextOpModal.show()
+          }
+          resolve()
+        }, 500)
+        return
+      }
+      const s = steps[i]
+      opProcessingSub.textContent = s.label
+      opProcessingBar.style.width = s.w + '%'
+      i++
+      setTimeout(run, 500)
+    }
+    run()
+  })
+}
+
+btnApplyInspectionStamp?.addEventListener('click', applyInspectionStamp)
+
+inspectionStampModalEl?.addEventListener('hidden.bs.modal', () => {
+  pendingInspectionOpIndex = -1
+  const formEl = document.getElementById('inspectionStampForm')
+  formEl?.classList.remove('was-validated')
+  formEl?.reset()
+})
+
+// Next Operation modal handlers
 yesNextOpBtn?.addEventListener('click', () => {
   if (nextOpModal) nextOpModal.hide()
-  // Return to Operation List and select the next operation
   if (pendingNextSelection >= 0) {
     selectOperation(pendingNextSelection)
   }
 })
 noNextOpBtn?.addEventListener('click', () => {
   if (nextOpModal) nextOpModal.hide()
-  // Stay; user can select any operation from the list
   selectedOpIndex = -1
 })
 
-// Re-render the merged Operations view after a routing edit/delete.
 function refreshOperationsView() {
   unmappedSequences = []
   operations = mapRoutingToOperations(getOperations(woId) || [], routingData)
@@ -1426,7 +1611,6 @@ function refreshOperationsView() {
   renderOperationList()
 }
 
-// Utility Functions
 function getStatusBadgeColor(status) {
   const colors = {
     'Draft': 'secondary',
@@ -1451,7 +1635,6 @@ function showValidationSuccess(message) {
   validationError.classList.add('d-none')
 }
 
-// Toast notification
 function showToast(title, message, type = 'error') {
   toastTitle.textContent = title
   toastMsg.textContent = message
@@ -1467,25 +1650,13 @@ toastClose?.addEventListener('click', () => {
   validationToast.classList.remove('show')
 })
 
-// Per-field validation error
-function markInvalid(el, invalid) {
-  el.classList.toggle('is-invalid', invalid)
-  if (invalid) {
-    el.classList.remove('shake')
-    void el.offsetWidth
-    el.classList.add('shake')
-  }
-}
-
 // Toggle Sidebar
 document.getElementById('toggleSidebar')?.addEventListener('click', () => {
   document.getElementById('sidebar').classList.toggle('collapsed')
 })
 
-// Global error handler
 window.addEventListener('error', (e) => {
   console.error('Global error:', e)
 })
 
-// Export for testing
 export { loadWorkOrder, loadRouting, renderOperationList }
