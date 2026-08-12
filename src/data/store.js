@@ -47,7 +47,7 @@ const seedWorkOrders = [
     barcode: { exists: true, type: 'JOB', value: '55200831' },
     assembly: { code: 'BB019224(AX1)', barcode: { exists: true, type: 'ASSEMBLY', value: 'BB019224(AX1)' } },
     description: 'Valve Body Casting',
-    status: 'Waiting',
+    status: 'Not Started',
     qty: 60,
     dueDate: '2026-08-12',
     lastOperation: 'Inspection',
@@ -68,7 +68,7 @@ const seedWorkOrders = [
     barcode: { exists: true, type: 'JOB', value: '55333021' },
     assembly: { code: 'CC440811(R2)', barcode: { exists: true, type: 'ASSEMBLY', value: 'CC440811(R2)' } },
     description: 'Turbine Blade Finishing',
-    status: 'Complete',
+    status: 'Completed',
     qty: 40,
     dueDate: '2026-07-30',
     lastOperation: '-',
@@ -112,11 +112,11 @@ const seedWorkOrders = [
 const seedRouting = {
   'WO-2026-0001': [
     {
-      opNo: '230', description: 'CNC Machining', workCenter: 'WC-CNC-01', status: 'Complete',
+      opNo: '230', description: 'CNC Machining', workCenter: 'WC-CNC-01', status: 'Completed',
       barcode: { exists: true, type: 'OPERATION', value: '230' },
       sequences: [
         {
-          seqNo: '10', opCode: 'ME101', department: 'ME', status: 'Complete', workingOn: 'Budi Santoso',
+          seqNo: '10', opCode: 'ME101', department: 'ME', status: 'Completed', workingOn: 'Budi Santoso',
           barcode: { exists: true, type: 'RESOURCE_SEQUENCE', value: '54989783$230$10' },
           scope: 'Set up CNC machine and load program...', scopeFull: 'Set up CNC machine and load program. Run machining for Stage 3 impeller. Verify dimensional tolerance per drawing. Clad material to ASTM A105 and complete roughing and finishing passes.',
           lastEdited: 'Andi Pratama',
@@ -125,7 +125,7 @@ const seedRouting = {
           iar: '', qualityOrder: '', qtyAccepted: '', qtyScrapped: '',
         },
         {
-          seqNo: '20', opCode: 'ME102', department: 'ME', status: 'Complete', workingOn: 'Budi Santoso',
+          seqNo: '20', opCode: 'ME102', department: 'ME', status: 'Completed', workingOn: 'Budi Santoso',
           scope: 'Dimensional inspection', scopeFull: 'Perform dimensional inspection on machined part using CMM. Record all measurements in the inspection report and verify bore depth, OD, and surface finish against drawing.',
           lastEdited: 'Andi Pratama',
           lastEditedBy: 'Andi Pratama',
@@ -147,7 +147,7 @@ const seedRouting = {
           iar: '', qualityOrder: '', qtyAccepted: '', qtyScrapped: '',
         },
         {
-          seqNo: '30', opCode: 'AS202', department: 'AS', status: 'Waiting', workingOn: '-',
+          seqNo: '30', opCode: 'AS202', department: 'AS', status: 'Not Started', workingOn: '-',
           barcode: { exists: true, type: 'RESOURCE_SEQUENCE', value: '54989783$5300$30' },
           scope: 'Final torque verification', scopeFull: 'Perform final torque verification using calibrated torque wrench and sign off the torque checklist.',
           lastEdited: 'Andi Pratama',
@@ -162,7 +162,7 @@ const seedRouting = {
       barcode: { exists: true, type: 'OPERATION', value: '5400' },
       sequences: [
         {
-          seqNo: '10', opCode: 'QC402', department: 'QC', status: 'Waiting', workingOn: '-',
+          seqNo: '10', opCode: 'QC402', department: 'QC', status: 'Not Started', workingOn: '-',
           scope: 'Final dimensional check', scopeFull: 'Perform final dimensional check before release to final QC stamping.',
           lastEdited: 'Citra Dewi',
           lastEditedBy: 'Citra Dewi',
@@ -176,7 +176,7 @@ const seedRouting = {
       barcode: { exists: true, type: 'OPERATION', value: '9000' },
       sequences: [
         {
-          seqNo: '10', opCode: 'QC499', department: 'QC', status: 'Waiting', workingOn: '-',
+          seqNo: '10', opCode: 'QC499', department: 'QC', status: 'Not Started', workingOn: '-',
           scope: 'Final quality release', scopeFull: 'Review IAR, quality order, and acceptance quantities before formal closing stamp.',
           lastEdited: 'Citra Dewi',
           lastEditedBy: 'Citra Dewi',
@@ -189,11 +189,11 @@ const seedRouting = {
   ],
   'WO-2026-0002': [
     {
-      opNo: '260', description: 'Casting & Pour', workCenter: 'WC-CST-01', status: 'Complete',
+      opNo: '260', description: 'Casting & Pour', workCenter: 'WC-CST-01', status: 'Completed',
       barcode: { exists: true, type: 'OPERATION', value: '260' },
       sequences: [
         {
-          seqNo: '10', opCode: 'CA301', department: 'CA', status: 'Complete', workingOn: 'Budi Santoso',
+          seqNo: '10', opCode: 'CA301', department: 'CA', status: 'Completed', workingOn: 'Budi Santoso',
           scope: 'Casting and pour', scopeFull: 'Set up mold and pour metal for valve body casting. Allow cool down and verify integrity after knockout.',
           lastEdited: 'Citra Dewi',
           lastEditedBy: 'Citra Dewi',
@@ -221,11 +221,11 @@ const seedRouting = {
   ],
   'WO-2026-0003': [
     {
-      opNo: '330', description: 'Surface Grind & Polish', workCenter: 'WC-FIN-01', status: 'Complete',
+      opNo: '330', description: 'Surface Grind & Polish', workCenter: 'WC-FIN-01', status: 'Completed',
       barcode: { exists: true, type: 'OPERATION', value: '330' },
       sequences: [
         {
-          seqNo: '10', opCode: 'FN501', department: 'FN', status: 'Complete', workingOn: 'Citra Dewi',
+          seqNo: '10', opCode: 'FN501', department: 'FN', status: 'Completed', workingOn: 'Citra Dewi',
           barcode: { exists: true, type: 'RESOURCE_SEQUENCE', value: '55333021$330$10' },
           scope: 'Surface grind and polish', scopeFull: 'Set up finishing machine and polish turbine blade to required surface finish and visual appearance.',
           lastEdited: 'Budi Santoso',
@@ -253,11 +253,11 @@ const seedRouting = {
       ],
     },
     {
-      opNo: '6000', description: 'Weld Inspection', workCenter: 'WC-QC-09', status: 'Waiting',
+      opNo: '6000', description: 'Weld Inspection', workCenter: 'WC-QC-09', status: 'Not Started',
       barcode: { exists: true, type: 'OPERATION', value: '6000' },
       sequences: [
         {
-          seqNo: '20', opCode: 'QC401', department: 'QC', status: 'Waiting', workingOn: '-',
+          seqNo: '20', opCode: 'QC401', department: 'QC', status: 'Not Started', workingOn: '-',
           barcode: { exists: true, type: 'RESOURCE_SEQUENCE', value: '55490077$6000$20' },
           scope: 'Weld inspection', scopeFull: 'Inspect weld quality and verify weld dimensions and penetration per welding procedure.',
           lastEdited: 'Andi Pratama',
@@ -298,7 +298,6 @@ export function getOperations(id) {
 }
 
 export function saveOperations(id, rows) {
-  // clear stale active flags; caller re-derives active op
   localStorage.setItem(OP_KEY + id, JSON.stringify(rows))
 }
 
@@ -412,7 +411,6 @@ export function nextRevisionNo(id, opNo, seqNo) {
   const revs = getScopeRevisions(id).filter(
     r => String(r.opNo) === String(opNo) && String(r.seqNo) === String(seqNo)
   )
-  // Highest existing revision number (parse "Rev. 03" -> 3)
   let max = 0
   revs.forEach(r => {
     const m = String(r.revisionNo || '').match(/(\d+)/)
@@ -458,14 +456,13 @@ export function deptCodeFromWorkCenter(wc = '') {
   if (w.includes('ASM') || w.includes('ASSEM')) return 'AS'
   if (w.includes('CST') || w.includes('CAST')) return 'CA'
   if (w.includes('FIN')) return 'FN'
-  // Parse WC-XXX prefix
   const m = w.match(/WC-([A-Z]+)/)
   if (m) {
     const p = m[1]
     if (/CNC|MACH|LATHE|MILL/.test(p)) return 'ME'
     if (/WLD|WELD/.test(p)) return 'WE'
     if (/QC|INSP/.test(p)) return 'QC'
-    if (/ASM/.test(p)) return 'AS'
+    if (/ASM|ASSEM/.test(p)) return 'AS'
     if (/CST|CAST/.test(p)) return 'CA'
     if (/FIN/.test(p)) return 'FN'
   }
@@ -495,31 +492,25 @@ export function getWorkingOn(routing = []) {
 }
 
 // Determine the "last operation" (highest sequence number reached) for a routing list.
-// Looks at the highest sequence number across ops. If the final sequence is Complete,
-// return the highest opNo. Otherwise return the opNo of the furthest in-progress/waiting sequence.
 export function getLastOperation(routing = []) {
   if (!routing || routing.length === 0) return '-'
-  // Flatten all operations with their sequences
   const flat = []
   routing.forEach(op => {
     const seqs = op.sequences || []
     if (seqs.length === 0) {
-      flat.push({ opNo: op.opNo, status: op.status || 'Pending' })
+      flat.push({ opNo: op.opNo, status: op.status || 'Not Started' })
     } else {
       seqs.forEach(seq => {
-        flat.push({ opNo: op.opNo, status: seq.status || op.status || 'Pending' })
+        flat.push({ opNo: op.opNo, status: seq.status || op.status || 'Not Started' })
       })
     }
   })
   if (flat.length === 0) return '-'
 
-  // Sort by sequence number (opNo + seqNo ascending)
   const sorted = [...flat].sort((a, b) => (parseInt(a.opNo) || 0) - (parseInt(b.opNo) || 0))
   const last = sorted[sorted.length - 1]
-  // If the last (furthest) sequence is complete, show it as the reached op
-  if (last.status === 'Complete') return last.opNo
-  // Otherwise show the furthest in-progress/waiting op
-  const furthestInProgress = [...sorted].reverse().find(s => s.status === 'In Progress' || s.status === 'Waiting')
+  if (last.status === 'Completed') return last.opNo
+  const furthestInProgress = [...sorted].reverse().find(s => s.status === 'In Progress' || s.status === 'Not Started')
   return furthestInProgress ? furthestInProgress.opNo : last.opNo
 }
 

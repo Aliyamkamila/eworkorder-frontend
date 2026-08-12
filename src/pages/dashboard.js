@@ -5,16 +5,16 @@ if (!isAuthed()) window.location.href = '/index.html'
 seedIfEmpty()
 
 const statusClass = {
-  'Complete': 'status-complete',
-  'In Progress': 'status-progress',
-  'Waiting': 'status-waiting',
+  'Completed': 'status-completed',
+  'In Progress': 'status-in-progress',
+  'Not Started': 'status-not-started',
 }
 
 function renderStats(list) {
   const stats = [
     { label: 'Total Active WO', value: list.length, icon: 'bi-clipboard-data', color: 'text-primary' },
-    { label: 'Completed WO', value: list.filter(w => w.status === 'Complete').length, icon: 'bi-check-circle', color: 'text-success' },
-    { label: 'Waiting WO', value: list.filter(w => w.status === 'Waiting').length, icon: 'bi-hourglass-split', color: 'text-warning' },
+    { label: 'Completed WO', value: list.filter(w => w.status === 'Completed').length, icon: 'bi-check-circle', color: 'text-success' },
+    { label: 'Not Started WO', value: list.filter(w => w.status === 'Not Started').length, icon: 'bi-hourglass-split', color: 'text-warning' },
     { label: 'In Progress WO', value: list.filter(w => w.status === 'In Progress').length, icon: 'bi-gear', color: 'text-primary' },
 { label: 'Not Started', value: list.filter(w => w.lastOperation === '-').length, icon: 'bi-tools', color: 'text-secondary' },
   ]

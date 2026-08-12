@@ -31,6 +31,9 @@ const resourceSequenceBarcodeWrap = document.getElementById('f_sequenceBarcodeWr
 const resourceSequenceBarcodeInput = document.getElementById('f_sequenceBarcode')
 const inspectionStampModalEl = document.getElementById('inspectionStampModal')
 const inspectionStampModal = inspectionStampModalEl ? new Modal(inspectionStampModalEl) : null
+const stampDetailModalEl = document.getElementById('stampDetailModal')
+const stampDetailModal = stampDetailModalEl ? new Modal(stampDetailModalEl) : null
+const stampDetailBody = document.getElementById('stampDetailBody')
 const fIrnNo = document.getElementById('f_irnNo')
 const fQtyOrdered = document.getElementById('f_qtyOrdered')
 const fQtyScrapped = document.getElementById('f_qtyScrapped')
@@ -116,7 +119,7 @@ async function loadWorkOrder(woId) {
             <div>
               <div class="d-flex align-items-center gap-2 mb-1">
                 <h4 class="fw-bold mb-0">${wo.woNumber || wo.id || woId}</h4>
-                <span class="badge bg-${pct === 100 ? 'success' : 'primary'}">${pct === 100 ? 'Complete' : 'In Progress'}</span>
+                <span class="badge bg-${pct === 100 ? 'success' : 'primary'}">${pct === 100 ? 'Completed' : 'In Progress'}</span>
               </div>
               ${activeOp
                 ? `<span class="small text-muted">Current: OP ${activeOp.opNo} · ${activeOp.name}</span>`
@@ -290,7 +293,7 @@ function mapRoutingToOperations(ops, routing) {
                mapped.find(op => normalized(op.name).includes(rName) || rName.includes(normalized(op.name)))
     }
     ;(rOp.sequences || []).forEach((seq, sIdx) => {
-      const seqEntry = { ...seq, routingOpNo: rOp.opNo || '', routingOpIndex: routing.indexOf(rOp), rSeqIndex: sIdx }
+      const seqEntry = { ...seq, routingOpNo: rOp.opNo || '', routingOpIndex: routing.indexOf(rOp), rSeqIndex: sIdx, status: normalizeStatus(seq.status) }
       if (target) {
         target.sequences.push(seqEntry)
         target.matched = true
@@ -483,7 +486,7 @@ function handleActionClick(action, opIdx, seqIdx) {
     document.getElementById('f_scope').value = item ? item.scope : ''
     document.getElementById('f_scopeFull').value = item ? item.scopeFull : ''
     document.getElementById('f_opCode').value = item ? (item.opCode || item.machine || '') : ''
-    document.getElementById('f_status').value = item ? (item.status || 'Pending') : 'Pending'
+    document.getElementById('f_status').value = item ? normalizeStatus(item.status) : ''
     document.getElementById('f_department').value = item ? item.department : ''
     document.getElementById('f_workingOn').value = item ? item.workingOn : ''
     document.getElementById('f_lastEdited').value = item ? (item.lastEditedBy || item.lastEdited || '') : ''
@@ -532,7 +535,7 @@ function handleActionClick(action, opIdx, seqIdx) {
     document.getElementById('f_scope').value = item ? item.scope : ''
     document.getElementById('f_scopeFull').value = item ? item.scopeFull : ''
     document.getElementById('f_opCode').value = item ? (item.opCode || item.machine || '') : ''
-    document.getElementById('f_status').value = item ? (item.status || 'Pending') : 'Pending'
+    document.getElementById('f_status').value = item ? normalizeStatus(item.status) : ''
     document.getElementById('f_department').value = item ? item.department : ''
     document.getElementById('f_workingOn').value = item ? item.workingOn : ''
     document.getElementById('f_lastEdited').value = item ? (item.lastEditedBy || item.lastEdited || '') : ''
@@ -706,7 +709,7 @@ form.addEventListener('submit', async (e) => {
     const newData = [...routingData]
     const opNo = newData[opIdx] ? newData[opIdx].opNo : ''
     const sequenceBarcodeValue = wantsSequenceBarcode ? typedSequenceBarcode : ''
-    const seqData = { seqNo, scope, scopeFull, opCode, status, department, workingOn, lastEdited: getCurrentUser(), lastEditedBy: getCurrentUser(), lastEditedAt: new Date().toISOString(), iar, qualityOrder, qtyAccepted, qtyScrapped }
+    const seqData = { seqNo, scope, scopeFull, opCode, status: normalizeStatus(status), department, workingOn, lastEdited: getCurrentUser(), lastEditedBy: getCurrentUser(), lastEditedAt: new Date().toISOString(), iar, qualityOrder, qtyAccepted, qtyScrapped }
     if (seqIdx >= 0) {
       const updatedSequence = {
         ...newData[opIdx].sequences[seqIdx],
@@ -843,8 +846,7 @@ async function loadOperationList(id) {
         barcode: op.barcode,
         assignedEmployee: '-',
         requirementType: 'Clock Required',
-        status: op.status === 'Complete' || op.status === 'Completed' ? 'Completed' : 'Not Started',
-        standardHours: 0, actualHours: 0,
+        status: normalizeStatus(op.status),
         documents: [], routingInfo: op.description || '', materials: [],
       }))
     }
@@ -878,14 +880,11 @@ function deriveActiveOperation() {
 }
 
 function formatLastEdited(seq) {
-  const by = seq.lastEditedBy || seq.lastEdited || '-'
   const at = seq.lastEditedAt ? new Date(seq.lastEditedAt) : null
-  if (by === '-') return '-'
-  const initials = by.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
-  if (!at || isNaN(at.getTime())) return initials
+  if (!at || isNaN(at.getTime())) return ''
   const dateStr = at.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
   const timeStr = at.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC' })
-  return `${initials} · ${dateStr}, ${timeStr}`
+  return `${dateStr}, ${timeStr}`
 }
 
 // ====================== RENDER OPERATION LIST ======================
@@ -900,12 +899,12 @@ function renderOperationList() {
 
   if (!displayOps || displayOps.length === 0) {
     opTableBody.innerHTML = `
-      <tr>
-        <td colspan="12" class="table-empty">
+      <div class="wo-grid-row wo-grid-empty">
+        <div class="wo-grid-cell table-empty" style="grid-column: 1 / span 13">
           <i class="bi bi-inbox d-block fs-3 mb-1"></i>
           ${opSearchQuery ? '<h6>No matching operations</h6><p>Try adjusting your search terms</p>' : '<h6>No operations found</h6><p>Operations will appear here once assigned</p>'}
-        </td>
-      </tr>
+        </div>
+      </div>
     `
     opProgressTag.textContent = ''
     return
@@ -920,100 +919,87 @@ function renderOperationList() {
   sorted.forEach((op, i) => {
     const isActive = op.active
     const isCompleted = op.status === 'Completed'
-    const reqType = op.requirementType === 'Stamp Only' ? 'Stamp Only' : 'Clock Required'
     const statusClass = isCompleted ? 'completed' : (isActive ? 'active' : 'pending')
-    const statusBadge = isCompleted ? 'bg-success' : (isActive ? 'bg-primary' : 'bg-secondary')
-    const statusText = isCompleted ? 'Completed' : (isActive ? 'Current' : 'Not Started')
+    const statusBadge = getStatusBadgeColor(op.status)
+    const statusText = normalizeStatus(op.status)
     const seqs = op.sequences || []
     const seqCount = seqs.length
     const opBarcodeValue = getOperationBarcodeValue(op)
-    const isExpanded = false // Default collapsed
+    const isExpanded = false
 
     // PARENT ROW - 12 columns
+    const opFlowKey = `op_flow_${woId}_${op.opNo}`
+    const opFlow = JSON.parse(sessionStorage.getItem(opFlowKey) || '{}')
     html += `
-      <tr class="op-parent-row ${isCompleted ? '' : 'op-row-selectable'}" data-index="${i}">
-        <td class="ps-4">
+      <div class="wo-grid-row op-parent-row ${isCompleted ? '' : 'op-row-selectable'}" data-index="${i}">
+        <div class="wo-grid-cell" style="grid-column: 1" data-col="1">
           ${seqCount > 0 ? `
             <button class="btn btn-sm btn-link p-0 op-expand-btn" data-op-index="${i}" title="Expand / collapse">
               <i class="bi bi-chevron-right op-expand-icon"></i>
             </button>
           ` : '<span class="text-muted" style="opacity:0.3;">—</span>'}
-        </td>
-        <td class="ps-1 fw-semibold op-detail-no">${op.opNo || ''}</td>
-        <td>
-          <div class="op-name-cell">
-            <span class="op-name fw-medium">${op.name || 'Operation'}</span>
-            ${seqCount ? `<span class="op-seq-count">${seqCount} seq${seqCount > 1 ? 's' : ''}</span>` : ''}
-          </div>
-        </td>
-        <td class="text-center">${opBarcodeValue ? buildBarcodeMarkup(opBarcodeValue) : '<span class="text-muted">-</span>'}</td>
-        <td>${reqType === 'Clock Required'
-              ? '<span class="req-badge req-clock"><i class="bi bi-clock"></i> Clock Required</span>'
-              : '<span class="req-badge req-stamp"><i class="bi bi-patch-check"></i> Stamp Only</span>'}</td>
-        <td>
-          <span class="badge ${statusBadge}"><span class="status-dot ${statusClass}"></span>${statusText}</span>
-          ${op.inspectionStamp ? '<span class="stamp-cap ms-1" title="Inspection Stamped"><i class="bi bi-patch-check-fill"></i></span>' : ''}
-        </td>
-        <td><span class="dept-chip">${op.department || '<span class="text-muted">-</span>'}</span></td>
-        <td class="d-none d-lg-table-cell"><code class="machine-code">${op.machine || '-'}</code></td>
-        <td class="d-none d-lg-table-cell">${op.assignedEmployee || '<span class="text-muted">-</span>'}</td>
-        <td class="d-none d-xl-table-cell text-center">${op.standardHours ?? '-'}</td>
-        <td class="d-none d-xl-table-cell text-center">${op.actualHours || '-'}</td>
-        <td class="text-end pe-3">
+        </div>
+        <div class="wo-grid-cell ps-1 fw-semibold op-detail-no text-center" style="grid-column: 2" data-col="2">${op.opNo || ''}</div>
+        <div class="wo-grid-cell text-center" style="grid-column: 3" data-col="3">-</div>
+        <div class="wo-grid-cell" style="grid-column: 4" data-col="4">
+          <span class="scope-title small">${op.routingInfo || op.name || 'Operation'}</span>
+        </div>
+        <div class="wo-grid-cell text-center hide-on-lg" style="grid-column: 5" data-col="5">${opBarcodeValue ? buildBarcodeMarkup(opBarcodeValue) : '<span class="text-muted">-</span>'}</div>
+        <div class="wo-grid-cell" style="grid-column: 6" data-col="6">
+          <span class="badge bg-${statusBadge}"><span class="status-dot ${statusClass}"></span>${statusText}</span>
+        </div>
+        <div class="wo-grid-cell" style="grid-column: 7" data-col="7"><span class="dept-chip">${op.department || '<span class="text-muted">-</span>'}</span></div>
+        <div class="wo-grid-cell" style="grid-column: 8" data-col="8"><code class="machine-code">${op.operationCode || op.machine || '-'}</code></div>
+        <div class="wo-grid-cell text-center hide-on-sm" style="grid-column: 9" data-col="9">${op.assignedEmployee || '<span class="text-muted">-</span>'}</div>
+        <div class="wo-grid-cell text-center hide-on-lg" style="grid-column: 10" data-col="10">-</div>
+        <div class="wo-grid-cell hide-on-xl text-center" style="grid-column: 11" data-col="11">${op.standardHours ?? '-'}</div>
+        <div class="wo-grid-cell hide-on-xl text-center" style="grid-column: 12" data-col="12">${op.actualHours || '-'}</div>
+        <div class="wo-grid-cell" style="grid-column: 13" data-col="13">
           <button class="btn btn-sm btn-outline-primary" data-view="${i}">
             <i class="bi bi-eye"></i> View
           </button>
-        </td>
-      </tr>
+        </div>
+      </div>
     `
 
-    // CHILD ROWS (sequences) - SAME 12 COLUMNS, no colspan!
     if (seqs.length) {
       seqs.forEach((seq, seqIdx) => {
-        const seqStatusColor = getStatusBadgeColor(seq.status || 'Pending')
+        const seqStatusColor = getStatusBadgeColor(seq.status)
         const seqStatusClass = seq.status === 'Completed' ? 'completed' : (seq.status === 'In Progress' ? 'active' : 'pending')
         const seqBarcode = getResourceSequenceBarcode(seq)
         const lastEditedDisplay = formatLastEdited(seq)
         const isFinal = !!seq.closingStampAvailable
 
         html += `
-          <tr class="op-seq-row" data-op-index="${i}" style="display:none;">
-            <td class="ps-4 text-center">
+          <div class="wo-grid-row op-seq-row" data-op-index="${i}" style="display:none;">
+            <div class="wo-grid-cell ps-4 text-center" style="grid-column: 1" data-col="1">
               <span class="text-muted small" style="opacity:0.4;">└</span>
-            </td>
-            <td class="ps-1 text-muted small"></td>
-            <td>
-              <div class="scope-cell d-flex align-items-center gap-2">
-                <span class="seq-num">${seq.seqNo || ''}</span>
-                <span class="scope-title small">${getScopeText(seq.scope, seq.scopeFull)}</span>
-              </div>
-            </td>
-            <td>${seqBarcode.exists ? buildBarcodeMarkup(seqBarcode.value) : '<span class="text-muted">-</span>'}</td>
-            <td>
-              <span class="badge bg-${seqStatusColor}"><span class="status-dot ${seqStatusClass}"></span>${seq.status || 'Pending'}</span>
-              ${seq.closingStamp ? '<span class="stamp-cap ms-1" title="Stamped"><i class="bi bi-patch-check-fill"></i></span>' : ''}
-            </td>
-            <td><span class="dept-chip">${seq.department || '-'}</span></td>
-            <td class="d-none d-lg-table-cell"><code class="machine-code">${seq.machine || '-'}</code></td>
-            <td class="d-none d-lg-table-cell">${seq.workingOn || '-'}</td>
-            <td class="d-none d-xl-table-cell text-center">
-              <div class="last-edited-cell">
-                <span class="text-muted">${lastEditedDisplay}</span>
-                <button class="btn btn-link btn-sm p-0 revision-link" data-r-index="${seq.routingOpIndex}" data-r-seq-index="${seq.rSeqIndex}" title="View Revision History">
-                  <i class="bi bi-clock-history me-1"></i>View
-                </button>
-              </div>
-            </td>
-            <td class="d-none d-xl-table-cell text-center">-</td>
-            <td class="d-none d-xl-table-cell text-center">-</td>
-            <td class="text-end pe-3">
+            </div>
+            <div class="wo-grid-cell ps-1 text-muted small" style="grid-column: 2" data-col="2"></div>
+            <div class="wo-grid-cell text-center" style="grid-column: 3" data-col="3"><span class="seq-num">${seq.seqNo || '-'}</span></div>
+            <div class="wo-grid-cell" style="grid-column: 4" data-col="4">
+              <span class="scope-title small">${getScopeText(seq.scope, seq.scopeFull)}</span>
+            </div>
+            <div class="wo-grid-cell text-center hide-on-lg" style="grid-column: 5" data-col="5">${seqBarcode.exists ? buildBarcodeMarkup(seqBarcode.value) : '<span class="text-muted">-</span>'}</div>
+            <div class="wo-grid-cell" style="grid-column: 6" data-col="6">
+              <span class="badge bg-${seqStatusColor}"><span class="status-dot ${seqStatusClass}"></span>${normalizeStatus(seq.status)}</span>
+            </div>
+            <div class="wo-grid-cell" style="grid-column: 7" data-col="7"><span class="dept-chip">${seq.department || '-'}</span></div>
+            <div class="wo-grid-cell" style="grid-column: 8" data-col="8"><code class="machine-code">${seq.operationCode || seq.machine || '-'}</code></div>
+            <div class="wo-grid-cell text-center hide-on-sm" style="grid-column: 9" data-col="9">${seq.workingOn || '<span class="text-muted">-</span>'}</div>
+            <div class="wo-grid-cell text-center hide-on-lg" style="grid-column: 10" data-col="10">
+              ${lastEditedDisplay ? `<div class="last-edited-cell text-center"><span class="text-muted">Last Revised</span><span class="last-edited-date">${lastEditedDisplay}</span><button class="btn btn-link btn-sm p-0 revision-link" data-r-index="${seq.routingOpIndex}" data-r-seq-index="${seq.rSeqIndex}" title="View Revision History"><i class="bi bi-clock-history"></i></button></div>` : '<span class="text-muted">-</span>'}
+            </div>
+            <div class="wo-grid-cell hide-on-xl text-center" style="grid-column: 11" data-col="11">-</div>
+            <div class="wo-grid-cell hide-on-xl text-center" style="grid-column: 12" data-col="12">-</div>
+            <div class="wo-grid-cell" style="grid-column: 13" data-col="13">
               <div class="btn-group btn-group-sm">
                 <button class="btn btn-outline-primary action-seq-btn" data-r-index="${seq.routingOpIndex}" data-r-seq-index="${seq.rSeqIndex}" data-action="edit" title="Edit"><i class="bi bi-pencil"></i></button>
                 ${isFinal ? `<button class="btn btn-outline-success action-seq-btn" data-r-index="${seq.routingOpIndex}" data-r-seq-index="${seq.rSeqIndex}" data-action="closingStamp" title="Closing Stamp"><i class="bi bi-patch-check"></i></button>` : ''}
                 <button class="btn btn-outline-danger action-seq-btn" data-r-index="${seq.routingOpIndex}" data-r-seq-index="${seq.rSeqIndex}" data-action="delete" title="Delete"><i class="bi bi-trash"></i></button>
               </div>
-            </td>
-          </tr>
+            </div>
+          </div>
         `
       })
     }
@@ -1022,66 +1008,58 @@ function renderOperationList() {
   // Unassigned sequences
   if (unmappedSequences.length) {
     html += `
-      <tr class="op-parent-row unmapped-parent">
-        <td class="ps-3">
+      <div class="wo-grid-row op-parent-row unmapped-parent">
+        <div class="wo-grid-cell" style="grid-column: 1" data-col="1">
           <button class="btn btn-sm btn-link p-0 op-expand-btn" data-op-index="-1" title="Expand / collapse">
             <i class="bi bi-chevron-right op-expand-icon"></i>
           </button>
-        </td>
-        <td colspan="11" class="ps-1">
+        </div>
+        <div class="wo-grid-cell ps-1" style="grid-column: 2 / span 13" data-col="2">
           <div class="op-name-cell">
             <span class="op-name text-warning"><i class="bi bi-exclamation-triangle me-1"></i>Unassigned Sequences</span>
             <span class="op-seq-count">${unmappedSequences.length} sequence${unmappedSequences.length > 1 ? 's' : ''}</span>
           </div>
-        </td>
-      </tr>
+        </div>
+      </div>
     `
 
     unmappedSequences.forEach((seq, seqIdx) => {
-      const seqStatusColor = getStatusBadgeColor(seq.status || 'Pending')
+      const seqStatusColor = getStatusBadgeColor(seq.status)
       const seqStatusClass = seq.status === 'Completed' ? 'completed' : (seq.status === 'In Progress' ? 'active' : 'pending')
       const seqBarcode = getResourceSequenceBarcode(seq)
       const isFinal = !!seq.closingStampAvailable
       const lastEditedDisplay = formatLastEdited(seq)
 
       html += `
-        <tr class="op-seq-row" data-op-index="-1" style="display:none;">
-          <td class="ps-4 text-center">
+        <div class="wo-grid-row op-seq-row" data-op-index="-1" style="display:none;">
+          <div class="wo-grid-cell ps-4 text-center" style="grid-column: 1" data-col="1">
             <span class="text-muted small" style="opacity:0.4;">└</span>
-          </td>
-          <td class="ps-1 text-muted small"></td>
-          <td>
-            <div class="scope-cell d-flex align-items-center gap-2">
-              <span class="seq-num">${seq.seqNo || ''}</span>
-              <span class="scope-title small">${getScopeText(seq.scope, seq.scopeFull)}</span>
-            </div>
-          </td>
-          <td>${seqBarcode.exists ? buildBarcodeMarkup(seqBarcode.value) : '<span class="text-muted">-</span>'}</td>
-          <td>
-            <span class="badge bg-${seqStatusColor}"><span class="status-dot ${seqStatusClass}"></span>${seq.status || 'Pending'}</span>
-            ${seq.closingStamp ? '<span class="stamp-cap ms-1" title="Stamped"><i class="bi bi-patch-check-fill"></i></span>' : ''}
-          </td>
-          <td><span class="dept-chip">${seq.department || '-'}</span></td>
-          <td class="d-none d-lg-table-cell"><code class="machine-code">${seq.machine || '-'}</code></td>
-          <td class="d-none d-lg-table-cell">${seq.workingOn || '-'}</td>
-          <td class="d-none d-xl-table-cell text-center">
-            <div class="last-edited-cell">
-              <span class="text-muted">${lastEditedDisplay}</span>
-              <button class="btn btn-link btn-sm p-0 revision-link" data-r-index="${seq.routingOpIndex}" data-r-seq-index="${seq.rSeqIndex}" title="View Revision History">
-                <i class="bi bi-clock-history me-1"></i>View
-              </button>
-            </div>
-          </td>
-          <td class="d-none d-xl-table-cell text-center">-</td>
-          <td class="d-none d-xl-table-cell text-center">-</td>
-          <td class="text-end pe-3">
+          </div>
+          <div class="wo-grid-cell ps-1 text-muted small" style="grid-column: 2" data-col="2"></div>
+          <div class="wo-grid-cell text-center" style="grid-column: 3" data-col="3"><span class="seq-num">${seq.seqNo || '-'}</span></div>
+          <div class="wo-grid-cell" style="grid-column: 4" data-col="4">
+            <span class="scope-title small">${getScopeText(seq.scope, seq.scopeFull)}</span>
+          </div>
+          <div class="wo-grid-cell text-center hide-on-lg" style="grid-column: 5" data-col="5">${seqBarcode.exists ? buildBarcodeMarkup(seqBarcode.value) : '<span class="text-muted">-</span>'}</div>
+          <div class="wo-grid-cell" style="grid-column: 6" data-col="6">
+            <span class="badge bg-${seqStatusColor}"><span class="status-dot ${seqStatusClass}"></span>${normalizeStatus(seq.status)}</span>
+          </div>
+          <div class="wo-grid-cell" style="grid-column: 7" data-col="7"><span class="dept-chip">${seq.department || '-'}</span></div>
+          <div class="wo-grid-cell" style="grid-column: 8" data-col="8"><code class="machine-code">${seq.operationCode || seq.machine || '-'}</code></div>
+          <div class="wo-grid-cell text-center hide-on-sm" style="grid-column: 9" data-col="9">${seq.workingOn || '<span class="text-muted">-</span>'}</div>
+          <div class="wo-grid-cell text-center hide-on-lg" style="grid-column: 10" data-col="10">
+            ${lastEditedDisplay ? `<div class="last-edited-cell text-center"><span class="text-muted">Last Revised</span><span class="last-edited-date">${lastEditedDisplay}</span><button class="btn btn-link btn-sm p-0 revision-link" data-r-index="${seq.routingOpIndex}" data-r-seq-index="${seq.rSeqIndex}" title="View Revision History"><i class="bi bi-clock-history"></i></button></div>` : '<span class="text-muted">-</span>'}
+          </div>
+          <div class="wo-grid-cell hide-on-xl text-center" style="grid-column: 11" data-col="11">-</div>
+          <div class="wo-grid-cell hide-on-xl text-center" style="grid-column: 12" data-col="12">-</div>
+          <div class="wo-grid-cell" style="grid-column: 13" data-col="13">
             <div class="btn-group btn-group-sm">
               <button class="btn btn-outline-primary action-seq-btn" data-r-index="${seq.routingOpIndex}" data-r-seq-index="${seq.rSeqIndex}" data-action="edit" title="Edit"><i class="bi bi-pencil"></i></button>
               ${isFinal ? `<button class="btn btn-outline-success action-seq-btn" data-r-index="${seq.routingOpIndex}" data-r-seq-index="${seq.rSeqIndex}" data-action="closingStamp" title="Closing Stamp"><i class="bi bi-patch-check"></i></button>` : ''}
               <button class="btn btn-outline-danger action-seq-btn" data-r-index="${seq.routingOpIndex}" data-r-seq-index="${seq.rSeqIndex}" data-action="delete" title="Delete"><i class="bi bi-trash"></i></button>
             </div>
-          </td>
-        </tr>
+          </div>
+        </div>
       `
     })
   }
@@ -1118,7 +1096,22 @@ function renderOperationList() {
   opTableBody.querySelectorAll('[data-view]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation()
-      selectOperation(parseInt(btn.dataset.view))
+      const idx = parseInt(btn.dataset.view)
+      selectOperation(idx)
+      const op = operations[idx]
+      if (!op) return
+      const flowKey = `op_flow_${woId}_${op.opNo}`
+      const flow = JSON.parse(sessionStorage.getItem(flowKey) || '{}')
+      const stampData = getStampDataForEntity(op, 'operation', flow)
+      if (stampData.exists) {
+        const saveEntry = (op.actionHistory || []).find(h => h.action === 'save') || (op.actionHistory || []).find(h => h.label === 'Finalized')
+        openStampDetailModal(stampData, {
+          opNo: op.opNo,
+          name: op.name,
+          department: op.department,
+          finalized: saveEntry ? { user: saveEntry.user, display: saveEntry.display } : null,
+        })
+      }
     })
   })
 
@@ -1152,69 +1145,76 @@ function selectOperation(idx) {
 }
 
 function renderDetailPanel(op) {
-  const isCompleted = op.status === 'Completed'
-  const reqType = op.requirementType === 'Stamp Only' ? 'Stamp Only' : 'Clock Required'
-
-  const steps = isCompleted
-    ? `<div class="op-done-msg"><i class="bi bi-check-circle-fill"></i> Operation completed.</div>
-       ${!op.inspectionStamp ? `<button class="btn btn-sm btn-outline-primary mt-2" data-flow="applyInspectionStamp"><i class="bi bi-patch-check me-1"></i>Apply Inspection Stamp</button>` : ''}`
-    : renderActionArea(op)
-
-  const inspectionStamp = op.inspectionStamp ? buildInspectionStampHTML(op.inspectionStamp) : ''
-  const inspectionStampSection = isCompleted
-    ? (inspectionStamp || '<div class="text-muted small">No inspection stamp applied yet.</div>')
-    : ''
-
-  const reqBadge = reqType === 'Clock Required'
-    ? '<span class="req-badge req-clock"><i class="bi bi-clock"></i> Clock Required</span>'
-    : '<span class="req-badge req-stamp"><i class="bi bi-patch-check"></i> Stamp Only</span>'
-
-  opDetailPanel.innerHTML = `
-    <div class="op-detail-head">
-      <div class="d-flex align-items-center gap-2 mb-2">
-        <h5 class="op-detail-name mb-0">${op.name || 'Operation'}</h5>
-        <span class="badge bg-${isCompleted ? 'success' : 'primary'}">${isCompleted ? 'Completed' : 'Active'}</span>
-      </div>
-      <span class="op-detail-no">OP ${op.opNo || ''}</span>
-      <div class="op-detail-badges">
-        ${reqBadge}
-        ${op.department ? `<span class="dept-chip">${op.department}</span>` : ''}
-        ${op.machine && op.machine !== '-' ? `<span class="machine-code">${op.machine}</span>` : ''}
-      </div>
-    </div>
-
-    <div class="op-detail-section">
-      <div class="section-label">Workflow Actions</div>
-      <div id="opActionArea">${steps}</div>
-    </div>
-    ${inspectionStampSection ? `<div class="op-detail-section"><div class="section-label">Inspection Stamp</div>${inspectionStampSection}</div>` : ''}
-  `
-}
-
-function renderActionArea(op) {
-  const reqType = op.requirementType || 'Clock Required'
+  const normalizedStatus = normalizeStatus(op.status)
+  const isCompleted = normalizedStatus === 'Completed'
   const flowKey = `op_flow_${woId}_${op.opNo}`
   const flow = JSON.parse(sessionStorage.getItem(flowKey) || '{}')
 
-  const steps = reqType === 'Clock Required'
-    ? [
-        { key: 'clockIn', label: 'Clock In', icon: 'bi-box-arrow-right', action: 'clockIn' },
-        { key: 'performDone', label: 'Perform', icon: 'bi-tools', action: 'performDone' },
-        { key: 'clockOut', label: 'Clock Out', icon: 'bi-box-arrow-in-left', action: 'clockOut' },
-        { key: 'stamp', label: 'Stamp', icon: 'bi-patch-check', action: 'stamp' },
-        { key: 'save', label: 'Save', icon: 'bi-send', action: 'save' },
-      ]
-    : [
-        { key: 'performDone', label: 'Perform', icon: 'bi-tools', action: 'performDone' },
-        { key: 'stamp', label: 'Stamp', icon: 'bi-patch-check', action: 'stamp' },
-        { key: 'save', label: 'Save', icon: 'bi-send', action: 'save' },
-      ]
+  const steps = isCompleted ? renderFinalizedView(op) : renderActionArea(op)
+
+  const stampData = getStampDataForEntity(op, 'operation', flow)
+  const stampPreview = buildStampIndicatorHTML(stampData, { size: 22 })
+  const stampViewBtn = stampData.exists ? `<button class="btn btn-sm btn-link p-0 ms-1" data-open-stamp-detail><i class="bi bi-eye"></i> View</button>` : ''
+
+  const statusBadgeColor = getStatusBadgeColor(op.status)
+  opDetailPanel.innerHTML = `
+    <div class="op-detail-head op-detail-head--compact">
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <h5 class="op-detail-name mb-0">${op.name || 'Operation'}</h5>
+        <span class="badge bg-${statusBadgeColor}">${normalizedStatus}</span>
+      </div>
+      <div class="op-detail-meta">
+        <span class="op-detail-no">OP ${op.opNo || ''}</span>
+        ${op.department ? `<span class="dept-chip">${op.department}</span>` : ''}
+        ${op.operationCode || op.machine ? `<code class="machine-code">${op.operationCode || op.machine}</code>` : ''}
+      </div>
+    </div>
+
+    <div class="op-detail-section op-detail-section--tight">
+      <div class="section-label">Workflow Actions</div>
+      ${steps}
+    </div>
+
+    <div class="op-detail-section op-detail-section--tight">
+      <div class="section-label">Stamp Details</div>
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        ${stampPreview}
+        ${stampViewBtn}
+      </div>
+    </div>
+  `
+
+  if (stampData.exists) {
+    opDetailPanel.querySelectorAll('[data-open-stamp-detail]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation()
+        const saveEntry = (op.actionHistory || []).find(h => h.action === 'save') || (op.actionHistory || []).find(h => h.label === 'Finalized')
+        openStampDetailModal(stampData, {
+          opNo: op.opNo,
+          name: op.name,
+          department: op.department,
+          finalized: saveEntry ? { user: saveEntry.user, display: saveEntry.display } : null,
+        })
+      })
+    })
+  }
+}
+
+function renderActionArea(op) {
+  const flowKey = `op_flow_${woId}_${op.opNo}`
+  const flow = JSON.parse(sessionStorage.getItem(flowKey) || '{}')
+
+  const steps = [
+    { key: 'performDone', label: 'Perform', icon: 'bi-tools', action: 'performDone' },
+    { key: 'stamp', label: 'Stamp', icon: 'bi-patch-check', action: 'stamp' },
+    { key: 'save', label: 'Save', icon: 'bi-send', action: 'save' },
+  ]
 
   let currentIdx = steps.findIndex(s => !flow[s.key])
   if (currentIdx === -1) currentIdx = steps.length - 1
 
   const stepper = `
-    <div class="op-stepper">
+    <div class="op-stepper op-stepper--compact">
       ${steps.map((s, i) => {
         const done = !!flow[s.key]
         const isCurrent = i === currentIdx && !done
@@ -1230,55 +1230,121 @@ function renderActionArea(op) {
     </div>
   `
 
-  const currentStep = steps[currentIdx]
-  const actionCard = `
-    <div class="op-action-card">
-      <div class="op-action-icon"><i class="bi ${currentStep.icon}"></i></div>
-      <div class="op-action-info">
-        <div class="op-action-title">${currentStep.label}</div>
-        <div class="op-action-desc">${getStepDescription(currentStep.key)}</div>
+  const history = op.actionHistory || []
+  const historyHtml = history.length > 0 ? `
+    <div class="op-history">
+      <div class="op-history-title">Action History</div>
+      <div class="op-history-list">
+        ${history.map(h => `
+          <div class="op-history-item">
+            <div class="op-history-icon"><i class="bi ${h.icon || 'bi-circle'}"></i></div>
+            <div class="op-history-content">
+              <div class="op-history-label">${h.label}</div>
+              <div class="op-history-meta">By ${escapeHtml(h.user)} · ${escapeHtml(h.display)}</div>
+            </div>
+          </div>
+        `).join('')}
       </div>
+    </div>
+  ` : ''
+
+  const stampData = getStampDataForEntity(op, 'operation', flow)
+  const stampVisual = stampData.exists ? `
+    <div class="op-stamp-preview">
+      <div class="op-stamp">
+        ${buildCircularStampSVG(stampData.centerLetter, stampData.reviewerText, stampData.display, 120)}
+      </div>
+      <div class="op-stamp-meta">
+        <span class="op-stamp-by">Stamped by ${escapeHtml(stampData.user)}</span>
+        <span class="op-stamp-at">${escapeHtml(stampData.display)}</span>
+      </div>
+    </div>
+  ` : ''
+
+  const currentStep = steps[currentIdx]
+  const actionBtn = currentStep && !flow.save ? `
+    <div class="op-action-bar">
       <button class="btn btn-primary op-action-btn" data-flow="${currentStep.action}">
         <i class="bi ${currentStep.icon} me-1"></i> ${currentStep.label}
       </button>
     </div>
-  `
-
-  const doneSteps = steps.filter(s => flow[s.key])
-  const doneSummary = doneSteps.length > 0 ? `
-    <div class="op-done-steps">
-      ${doneSteps.map(s => `
-        <span class="op-done-chip">
-          <i class="bi bi-check-circle-fill"></i> ${s.label}${flow[s.key] && s.key !== 'performDone' ? ` · ${flow[s.key]}` : ''}
-        </span>
-      `).join('')}
-    </div>
   ` : ''
 
-  const stampVisual = flow.stamp ? `
-    <div class="op-stamp-area">
-      <div class="op-stamp">
-        <div class="stamp-center">A</div>
-        <div class="stamp-bottom">${escapeHtml(String(flow.stamp))}</div>
+  return `
+    <div class="op-workflow">
+      ${stepper}
+      <div class="op-workflow-body">
+        ${historyHtml}
+        ${stampVisual}
+        ${actionBtn}
+      </div>
+    </div>
+  `
+}
+
+function renderFinalizedView(op) {
+  const history = op.actionHistory || []
+  const saveEntry = history.find(h => h.action === 'save') || history.find(h => h.label === 'Finalized') || history[history.length - 1]
+  const finalizedBy = saveEntry ? saveEntry.user : getCurrentUser()
+  const finalizedAt = saveEntry ? saveEntry.display : new Date().toLocaleString('en-GB', {
+    day: '2-digit', month: 'short', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+    timeZone: 'UTC'
+  })
+
+  const flowKey = `op_flow_${woId}_${op.opNo}`
+  const flow = JSON.parse(sessionStorage.getItem(flowKey) || '{}')
+  const stampData = getStampDataForEntity(op, 'operation', flow)
+
+  const stepper = `
+    <div class="op-stepper op-stepper--compact op-stepper--done">
+      <div class="op-step done">
+        <div class="op-step-dot"><i class="bi bi-check-lg"></i></div>
+        <span class="op-step-label">Perform</span>
+      </div>
+      <div class="op-step done">
+        <div class="op-step-dot"><i class="bi bi-check-lg"></i></div>
+        <span class="op-step-label">Stamp</span>
+        ${stampData.exists ? `<div class="op-step-meta">${escapeHtml(stampData.user)} · ${escapeHtml(stampData.display)}</div>` : ''}
+      </div>
+      <div class="op-step done">
+        <div class="op-step-dot"><i class="bi bi-check-lg"></i></div>
+        <span class="op-step-label">Save</span>
+        <div class="op-step-meta op-step-meta--final">Finalized · ${escapeHtml(finalizedBy)} · ${escapeHtml(finalizedAt)}</div>
+      </div>
+    </div>
+  `
+
+  const historyHtml = history.length > 0 ? `
+    <div class="op-history">
+      <div class="op-history-list">
+        ${history.map(h => `
+          <div class="op-history-item">
+            <div class="op-history-icon"><i class="bi ${h.icon || 'bi-circle'}"></i></div>
+            <div class="op-history-content">
+              <div class="op-history-label">${h.label}</div>
+              <div class="op-history-meta">By ${escapeHtml(h.user)} · ${escapeHtml(h.display)}</div>
+            </div>
+          </div>
+        `).join('')}
       </div>
     </div>
   ` : ''
 
+  const closingStamp = op.inspectionStamp ? buildInspectionStampHTML(op.inspectionStamp) : ''
+
   return `
-    <div class="op-flow">
+    <div class="op-workflow">
       ${stepper}
-      ${doneSummary}
-      ${stampVisual}
-      ${actionCard}
+      ${historyHtml ? `<div class="op-workflow-body">${historyHtml}</div>` : ''}
+      ${closingStamp ? `<div class="op-detail-section"><div class="section-label">Closing Stamp</div>${closingStamp}</div>` : ''}
     </div>
   `
 }
 
 function getStepDescription(key) {
   const desc = {
-    clockIn: 'Start tracking time for this operation',
     performDone: 'Complete the operation work',
-    clockOut: 'Stop tracking time for this operation',
     stamp: 'Apply digital stamp to certify the operation',
     save: 'Save and finalize the operation',
   }
@@ -1294,28 +1360,33 @@ opDetailPanel.addEventListener('click', (e) => {
   const action = btn.dataset.flow
   const flowKey = `op_flow_${woId}_${op.opNo}`
   const flow = JSON.parse(sessionStorage.getItem(flowKey) || '{}')
-  const now = new Date().toLocaleTimeString()
+  const now = new Date()
+  const user = getCurrentUser()
+  const display = now.toLocaleString('en-GB', {
+    day: '2-digit', month: 'short', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+    timeZone: 'UTC'
+  })
 
-  if (action === 'clockIn') {
-    flow.clockIn = now
+  if (action === 'performDone') {
+    flow.performDone = { done: true, user, timestamp: now.toISOString(), display }
+    op.actionHistory = op.actionHistory || []
+    op.actionHistory.push({ action: 'performDone', label: 'Perform', icon: 'bi-tools', user, timestamp: now.toISOString(), display })
     sessionStorage.setItem(flowKey, JSON.stringify(flow))
-    renderDetailPanel(op)
-  } else if (action === 'performDone') {
-    flow.performDone = true
-    sessionStorage.setItem(flowKey, JSON.stringify(flow))
-    renderDetailPanel(op)
-  } else if (action === 'clockOut') {
-    flow.clockOut = now
-    sessionStorage.setItem(flowKey, JSON.stringify(flow))
+    saveOperations(woId, operations)
     renderDetailPanel(op)
   } else if (action === 'stamp') {
     const stampNow = new Date()
-    flow.stamp = stampNow.toLocaleString('en-GB', {
+    const stampDisplay = stampNow.toLocaleString('en-GB', {
       day: '2-digit', month: 'short', year: 'numeric',
       hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
       timeZone: 'UTC'
     })
+    flow.stamp = { done: true, user, timestamp: stampNow.toISOString(), display: stampDisplay, stampString: stampDisplay }
+    op.actionHistory = op.actionHistory || []
+    op.actionHistory.push({ action: 'stamp', label: 'Stamped', icon: 'bi-patch-check-fill', user, timestamp: stampNow.toISOString(), display: stampDisplay })
     sessionStorage.setItem(flowKey, JSON.stringify(flow))
+    saveOperations(woId, operations)
     renderDetailPanel(op)
   } else if (action === 'save') {
     saveOperation()
@@ -1325,7 +1396,64 @@ opDetailPanel.addEventListener('click', (e) => {
   }
 })
 
-function saveOperation() {
+async function completeOperationSimple(op, onDone) {
+  opProcessingOverlay.classList.remove('d-none')
+  opProcessingSub.textContent = `Completing operation ${op.opNo}`
+  opProcessingBar.style.width = '0%'
+
+  const steps = [
+    { w: 20, label: 'Saving operation data...' },
+    { w: 45, label: 'Updating progress...' },
+    { w: 70, label: 'Refreshing progress bar...' },
+    { w: 85, label: 'Updating operation status...' },
+  ]
+
+  await new Promise(resolve => {
+    let i = 0
+    const run = () => {
+      if (i >= steps.length) {
+        const saveNow = new Date()
+        op.status = 'Completed'
+        op.active = false
+        op.actionHistory = op.actionHistory || []
+        op.actionHistory.push({ action: 'save', label: 'Finalized', icon: 'bi-check-circle-fill', user: getCurrentUser(), timestamp: saveNow.toISOString(), display: saveNow.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC' }) })
+        saveOperations(woId, operations)
+        sessionStorage.removeItem(`op_flow_${woId}_${op.opNo}`)
+        addLog(woId, { user: getCurrentUser(), action: 'Operation Stamp', detail: `Operation stamp applied to OP ${op.opNo}` })
+
+        const nextActive = operations.findIndex(o => o.status !== 'Completed')
+        operations.forEach((o, idx) => {
+          o.active = (idx === nextActive)
+        })
+        saveOperations(woId, operations)
+
+        deriveActiveOperation()
+        renderOperationList()
+        loadWorkOrder(woId)
+        pendingNextSelection = nextActive
+
+        setTimeout(() => {
+          opProcessingOverlay.classList.add('d-none')
+          if (nextActive >= 0) {
+            if (nextOpModal) nextOpModal.show()
+          } else {
+            if (onDone) onDone()
+          }
+          resolve()
+        }, 500)
+        return
+      }
+      const s = steps[i]
+      opProcessingSub.textContent = s.label
+      opProcessingBar.style.width = s.w + '%'
+      i++
+      setTimeout(run, 500)
+    }
+    run()
+  })
+}
+
+async function saveOperation() {
   const op = operations[selectedOpIndex]
   if (!op) return
 
@@ -1334,84 +1462,213 @@ function saveOperation() {
 
   if (isLastOp) {
     pendingInspectionOpIndex = selectedOpIndex
-    showInspectionStampModal(op)
-    return
+    await completeOperationSimple(op, () => {
+      showInspectionStampModal(op)
+    })
+  } else {
+    await completeOperationSimple(op)
   }
+}
 
-  opProcessingOverlay.classList.remove('d-none')
-  opProcessingSub.textContent = `Saving operation ${op.opNo}`
-  opProcessingBar.style.width = '0%'
+// ====================== UNIFIED STAMP SYSTEM ======================
+function buildCircularStampSVG(centerLetter, reviewerText, date, size = 200) {
+  const reviewer = String(reviewerText || '').trim()
+  const initials = reviewer
+    .split(/\s+/)
+    .filter(Boolean)
+    .map(w => w[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
+  const center = (centerLetter || initials ? initials[0] : 'A').toUpperCase()
+  const arcText = initials || reviewer || 'A'
+  const shortDate = date ? date.split(',')[0] : ''
 
-  const baseSteps = [
-    { w: 20, label: 'Saving operation data...' },
-    { w: 45, label: 'Updating progress...' },
-    { w: 70, label: 'Refreshing progress bar...' },
-    { w: 85, label: 'Updating operation status...' },
-  ]
-  const finalSteps = [
-    { w: 90, label: 'Work Order Complete ✓' },
-    { w: 94, label: 'Update WO Status = COMPLETE' },
-    { w: 97, label: 'Generate Digital Work Order Package' },
-    { w: 100, label: 'Archive Documents (frontend demo)' },
-  ]
-  const steps = isLastOp ? [...baseSteps, ...finalSteps] : [...baseSteps, { w: 100, label: 'Checking next operation...' }]
+  return `
+    <svg viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <filter id="stamp-rough" x="-10%" y="-10%" width="120%" height="120%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="4" result="noise" />
+          <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.8" />
+        </filter>
+      </defs>
+      <g class="stamp-ink" filter="url(#stamp-rough)">
+        <circle cx="${size/2}" cy="${size/2}" r="${size * 0.46}" fill="none" stroke="currentColor" stroke-width="${size * 0.025}" opacity="0.9" />
+        <circle cx="${size/2}" cy="${size/2}" r="${size * 0.40}" fill="none" stroke="currentColor" stroke-width="${size * 0.0125}" opacity="0.75" />
+        <path id="stamp-top-arc-${size}" d="M ${size * 0.19},${size/2} a ${size * 0.31},${size * 0.31} 0 0,1 ${size * 0.62},0" fill="none" />
+        <text font-size="${size * 0.0525}" font-weight="700" letter-spacing="${size * 0.0175}" fill="currentColor" opacity="0.9">
+          <textPath href="#stamp-top-arc-${size}" startOffset="12.5%">${escapeHtml(arcText.toUpperCase())}</textPath>
+        </text>
+        <text x="${size/2}" y="${size * 0.54}" text-anchor="middle" font-size="${size * 0.26}" font-weight="900" font-family="Georgia, 'Times New Roman', serif" fill="currentColor" opacity="0.95">${escapeHtml(center)}</text>
+        <text x="${size/2}" y="${size * 0.775}" text-anchor="middle" font-size="${size * 0.045}" font-weight="700" letter-spacing="${size * 0.0075}" fill="currentColor" opacity="0.8">${escapeHtml(shortDate)}</text>
+      </g>
+    </svg>
+  `
+}
 
-  let i = 0
-  const run = () => {
-    if (i >= steps.length) {
-      op.status = 'Completed'
-      op.actualHours = (op.actualHours || 0) + 0.5
-      op.active = false
-      saveOperations(woId, operations)
-      sessionStorage.removeItem(`op_flow_${woId}_${op.opNo}`)
-      addLog(woId, { user: 'Admin', action: 'Complete', detail: `Operation ${op.opNo} ${op.name} completed` })
+function getStampDataForEntity(entity, entityType = 'operation', flow = {}) {
+  if (!entity) return { exists: false }
 
-      const nextActive = operations.findIndex(o => o.status !== 'Completed')
-      operations.forEach((o, idx) => {
-        o.active = (idx === nextActive)
-      })
-      saveOperations(woId, operations)
-
-      const allDone = operations.every(o => o.status === 'Completed')
-      if (allDone) {
-        updateWorkOrderStatus(woId, 'Complete')
-        addLog(woId, { user: 'System', action: 'Complete', detail: 'Work Order marked COMPLETE.' })
-      }
-
-      deriveActiveOperation()
-      renderOperationList()
-      loadWorkOrder(woId)
-      pendingNextSelection = nextActive
-
-      setTimeout(() => {
-        opProcessingOverlay.classList.add('d-none')
-        if (allDone) {
-          showToast('All Operations Completed', 'All operations completed successfully.', 'success')
-          opDetailPanel.innerHTML = `
-            <div class="op-all-done">
-              <i class="bi bi-check-circle-fill fs-2 text-success"></i>
-              <h5 class="mt-2 mb-1">Work Order Complete</h5>
-              <p class="text-muted mb-0">All operations completed successfully.</p>
-              <div class="op-complete-steps">
-                <div><i class="bi bi-check-circle-fill"></i> Work Order Status = COMPLETE</div>
-                <div><i class="bi bi-check-circle-fill"></i> Generate Digital Work Order Package</div>
-                <div><i class="bi bi-check-circle-fill"></i> Archive Documents</div>
-              </div>
-            </div>
-          `
-        } else {
-          if (nextOpModal) nextOpModal.show()
-        }
-      }, 500)
-      return
+  if (entityType === 'sequence') {
+    if (!entity.closingStamp) return { exists: false }
+    const by = entity.closingStampBy || '-'
+    const at = entity.closingStampAt ? new Date(entity.closingStampAt).toLocaleString('en-GB', {
+      day: '2-digit', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+      timeZone: 'UTC'
+    }) : '-'
+    return {
+      exists: true,
+      user: by,
+      timestamp: entity.closingStampAt,
+      display: at,
+      centerLetter: by !== '-' ? by.split(/\s+/).filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase()[0] : 'A',
+      reviewerText: by,
     }
-    const s = steps[i]
-    opProcessingSub.textContent = s.label
-    opProcessingBar.style.width = s.w + '%'
-    i++
-    setTimeout(run, isLastOp ? 500 : 400)
   }
-  run()
+
+  if (entityType === 'closing') {
+    if (!entity.inspectionStamp) return { exists: false }
+    const stamp = entity.inspectionStamp
+    const by = stamp.reviewedBy || '-'
+    const at = stamp.reviewedDateDisplay || new Date(stamp.reviewedDate).toLocaleString('en-GB', {
+      day: '2-digit', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', hour12: false,
+      timeZone: 'UTC'
+    })
+    return {
+      exists: true,
+      user: by,
+      timestamp: stamp.reviewedDate,
+      display: at,
+      centerLetter: by !== '-' ? by.split(/\s+/).filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase()[0] : 'A',
+      reviewerText: by,
+    }
+  }
+
+  const history = entity.actionHistory || []
+  const stampEntry = history.find(h => h.action === 'stamp') || history.find(h => h.label === 'Stamped')
+  if (stampEntry) {
+    return {
+      exists: true,
+      user: stampEntry.user,
+      timestamp: stampEntry.timestamp,
+      display: stampEntry.display,
+      centerLetter: stampEntry.user ? stampEntry.user.split(/\s+/).filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase()[0] : 'A',
+      reviewerText: stampEntry.user,
+    }
+  }
+  if (flow && flow.stamp && flow.stamp.done) {
+    return {
+      exists: true,
+      user: flow.stamp.user,
+      timestamp: flow.stamp.timestamp,
+      display: flow.stamp.display,
+      centerLetter: flow.stamp.user ? flow.stamp.user.split(/\s+/).filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase()[0] : 'A',
+      reviewerText: flow.stamp.user,
+    }
+  }
+  return { exists: false }
+}
+
+function buildStampIndicatorHTML(stampData, opts = {}) {
+  const size = opts.size || 22
+  if (!stampData.exists) {
+    return `
+      <span class="stamp-indicator stamp-indicator--empty" title="Not Stamped">
+        <span class="stamp-indicator-stamp" style="width:${size}px;height:${size}px;">
+          <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="100" cy="100" r="92" fill="none" stroke="currentColor" stroke-width="12" opacity="0.4" />
+          </svg>
+        </span>
+        <span class="stamp-indicator-text">Not Stamped</span>
+      </span>
+    `
+  }
+  return `
+    <span class="stamp-indicator" title="Stamped by ${escapeHtml(stampData.user)} at ${escapeHtml(stampData.display)}">
+      <span class="stamp-indicator-stamp" style="width:${size}px;height:${size}px;">
+        ${buildCircularStampSVG(stampData.centerLetter, stampData.reviewerText, stampData.display, 120)}
+      </span>
+      <span class="stamp-indicator-meta">${escapeHtml(stampData.display)}</span>
+    </span>
+  `
+}
+
+function buildStampDetailModalContent(stampData, entityInfo = {}) {
+  if (!stampData || !stampData.exists) {
+    return `
+      <div class="stamp-detail-card">
+        <div class="stamp-detail-stamp" style="width:120px;height:120px;opacity:0.35;">
+          ${buildCircularStampSVG('A', '', '', 120)}
+        </div>
+        <div class="stamp-detail-status" style="color:var(--muted);background:var(--border-light);border-color:var(--border);">
+          <i class="bi bi-patch-check"></i> Not Stamped
+        </div>
+        ${entityInfo.opNo ? `<div class="stamp-detail-meta"><div class="stamp-detail-row"><span class="stamp-detail-label">Operation</span><span class="stamp-detail-value">OP ${escapeHtml(entityInfo.opNo)}${entityInfo.name ? ' · ' + escapeHtml(entityInfo.name) : ''}</span></div><div class="stamp-detail-row"><span class="stamp-detail-label">Department</span><span class="stamp-detail-value">${escapeHtml(entityInfo.department || '-')}</span></div></div>` : ''}
+      </div>
+    `
+  }
+
+  const isFinalized = !!entityInfo.finalized
+  const finalizedBy = entityInfo.finalized ? entityInfo.finalized.user : null
+  const finalizedAt = entityInfo.finalized ? entityInfo.finalized.display : null
+
+  return `
+    <div class="stamp-detail-card">
+      <div class="stamp-detail-stamp">
+        ${buildCircularStampSVG(stampData.centerLetter, stampData.reviewerText, stampData.display, 200)}
+      </div>
+      <div class="stamp-detail-status">
+        <i class="bi bi-patch-check-fill"></i> STAMPED
+        ${isFinalized ? '<span style="margin:0 0.35rem;color:var(--border);">|</span><span style="color:#15803d;"><i class="bi bi-check-circle-fill"></i> FINALIZED</span>' : ''}
+      </div>
+      <div class="stamp-detail-meta">
+        <div class="stamp-detail-row">
+          <span class="stamp-detail-label">Stamped By</span>
+          <span class="stamp-detail-value">${escapeHtml(stampData.user)}</span>
+        </div>
+        <div class="stamp-detail-row">
+          <span class="stamp-detail-label">Date & Time</span>
+          <span class="stamp-detail-value">${escapeHtml(stampData.display)}</span>
+        </div>
+        ${entityInfo.opNo ? `
+        <div class="stamp-detail-row">
+          <span class="stamp-detail-label">Operation</span>
+          <span class="stamp-detail-value">${escapeHtml(entityInfo.name || '')} · OP ${escapeHtml(entityInfo.opNo)}</span>
+        </div>
+        ` : ''}
+        ${entityInfo.sequenceNo ? `
+        <div class="stamp-detail-row">
+          <span class="stamp-detail-label">Sequence</span>
+          <span class="stamp-detail-value">Sequence ${escapeHtml(entityInfo.sequenceNo)}</span>
+        </div>
+        ` : ''}
+        <div class="stamp-detail-row">
+          <span class="stamp-detail-label">Department</span>
+          <span class="stamp-detail-value">${escapeHtml(entityInfo.department || '-')}</span>
+        </div>
+        ${isFinalized && finalizedBy ? `
+        <div class="stamp-detail-row stamp-detail-finalized">
+          <span class="stamp-detail-label">Finalized By</span>
+          <span class="stamp-detail-value">${escapeHtml(finalizedBy)}</span>
+        </div>
+        ` : ''}
+        ${isFinalized && finalizedAt ? `
+        <div class="stamp-detail-row stamp-detail-finalized">
+          <span class="stamp-detail-label">Finalized Date & Time</span>
+          <span class="stamp-detail-value">${escapeHtml(finalizedAt)}</span>
+        </div>
+        ` : ''}
+      </div>
+    </div>
+  `
+}
+
+function openStampDetailModal(stampData, entityInfo = {}) {
+  if (!stampDetailModal || !stampDetailBody) return
+  stampDetailBody.innerHTML = buildStampDetailModalContent(stampData, entityInfo)
+  stampDetailModal.show()
 }
 
 // ====================== INSPECTION STAMP ======================
@@ -1442,19 +1699,24 @@ function buildInspectionStampHTML(stamp) {
     hour: '2-digit', minute: '2-digit', hour12: false,
     timeZone: 'UTC'
   })
+
+  const reviewer = String(stamp.reviewedBy || '').trim()
+  const initials = reviewer
+    .split(/\s+/)
+    .filter(Boolean)
+    .map(w => w[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
+  const centerLetter = initials ? initials[0] : 'A'
+  const reviewerText = initials || reviewer || 'A'
+
+  const shortDate = reviewedDate ? reviewedDate.split(',')[0] : ''
+
   return `
     <div class="inspection-stamp-area">
       <div class="inspection-stamp">
-        <div class="stamp-irn">IRN: ${escapeHtml(String(stamp.irnNo || ''))}</div>
-        <div class="stamp-qty-row">
-          <span>Ordered: <span class="stamp-qty-value">${stamp.qtyOrdered ?? '-'}</span></span>
-          <span>Scrapped: <span class="stamp-qty-value">${stamp.qtyScrapped ?? '-'}</span></span>
-        </div>
-        <div class="stamp-qty-row">
-          <span>Accepted: <span class="stamp-qty-value">${stamp.qtyAccepted ?? '-'}</span></span>
-        </div>
-        <div class="stamp-reviewer">By: ${escapeHtml(String(stamp.reviewedBy || ''))}</div>
-        <div class="stamp-date">${escapeHtml(String(reviewedDate))}</div>
+        ${buildCircularStampSVG(centerLetter, reviewerText, shortDate, 200)}
       </div>
     </div>
   `
@@ -1502,85 +1764,15 @@ async function applyInspectionStamp() {
 
   if (inspectionStampModal) inspectionStampModal.hide()
 
-  await completeOperationWithSimulation(op)
+  updateWorkOrderStatus(woId, 'Completed')
+  addLog(woId, { user: getCurrentUser(), action: 'Closing Stamp', detail: `Closing stamp applied to OP ${op.opNo} - IRN: ${op.inspectionStamp?.irnNo || '-'}` })
+
+  deriveActiveOperation()
+  renderOperationList()
+  loadWorkOrder(woId)
   renderDetailPanel(op)
-}
 
-async function completeOperationWithSimulation(op) {
-  opProcessingOverlay.classList.remove('d-none')
-  opProcessingSub.textContent = `Completing operation ${op.opNo}`
-  opProcessingBar.style.width = '0%'
-
-  const steps = [
-    { w: 20, label: 'Saving operation data...' },
-    { w: 45, label: 'Updating progress...' },
-    { w: 70, label: 'Refreshing progress bar...' },
-    { w: 85, label: 'Updating operation status...' },
-    { w: 90, label: 'Work Order Complete ✓' },
-    { w: 94, label: 'Update WO Status = COMPLETE' },
-    { w: 97, label: 'Generate Digital Work Order Package' },
-    { w: 100, label: 'Archive Documents (frontend demo)' },
-  ]
-
-  await new Promise(resolve => {
-    let i = 0
-    const run = () => {
-      if (i >= steps.length) {
-        op.status = 'Completed'
-        op.actualHours = (op.actualHours || 0) + 0.5
-        op.active = false
-        saveOperations(woId, operations)
-        sessionStorage.removeItem(`op_flow_${woId}_${op.opNo}`)
-        addLog(woId, { user: getCurrentUser(), action: 'Inspection Stamp', detail: `Inspection stamp applied to OP ${op.opNo} - IRN: ${op.inspectionStamp?.irnNo || '-'}` })
-
-        const nextActive = operations.findIndex(o => o.status !== 'Completed')
-        operations.forEach((o, idx) => {
-          o.active = (idx === nextActive)
-        })
-        saveOperations(woId, operations)
-
-        const allDone = operations.every(o => o.status === 'Completed')
-        if (allDone) {
-          updateWorkOrderStatus(woId, 'Complete')
-          addLog(woId, { user: 'System', action: 'Complete', detail: 'Work Order marked COMPLETE.' })
-        }
-
-        deriveActiveOperation()
-        renderOperationList()
-        loadWorkOrder(woId)
-        pendingNextSelection = nextActive
-
-        setTimeout(() => {
-          opProcessingOverlay.classList.add('d-none')
-          if (allDone) {
-            showToast('All Operations Completed', 'All operations completed successfully.', 'success')
-            opDetailPanel.innerHTML = `
-              <div class="op-all-done">
-                <i class="bi bi-check-circle-fill fs-2 text-success"></i>
-                <h5 class="mt-2 mb-1">Work Order Complete</h5>
-                <p class="text-muted mb-0">All operations completed successfully.</p>
-                <div class="op-complete-steps">
-                  <div><i class="bi bi-check-circle-fill"></i> Work Order Status = COMPLETE</div>
-                  <div><i class="bi bi-check-circle-fill"></i> Generate Digital Work Order Package</div>
-                  <div><i class="bi bi-check-circle-fill"></i> Archive Documents</div>
-                </div>
-              </div>
-            `
-          } else {
-            if (nextOpModal) nextOpModal.show()
-          }
-          resolve()
-        }, 500)
-        return
-      }
-      const s = steps[i]
-      opProcessingSub.textContent = s.label
-      opProcessingBar.style.width = s.w + '%'
-      i++
-      setTimeout(run, 500)
-    }
-    run()
-  })
+  showToast('Final/Closing Stamp Applied', 'Work order has been completed.', 'success')
 }
 
 btnApplyInspectionStamp?.addEventListener('click', applyInspectionStamp)
@@ -1611,16 +1803,24 @@ function refreshOperationsView() {
   renderOperationList()
 }
 
+function normalizeStatus(status) {
+  const s = String(status || '').trim().toLowerCase()
+  if (['complete', 'completed'].includes(s)) return 'Completed'
+  if (['in progress', 'current', 'active', 'in-progress'].includes(s)) return 'In Progress'
+  if (['not started', 'pending', 'draft', 'not-started'].includes(s)) return 'Not Started'
+  if (['cancelled', 'canceled', 'on hold', 'hold'].includes(s)) return 'Cancelled'
+  return 'Not Started'
+}
+
 function getStatusBadgeColor(status) {
+  const normalized = normalizeStatus(status)
   const colors = {
-    'Draft': 'secondary',
-    'Pending': 'warning',
+    'Not Started': 'secondary',
     'In Progress': 'info',
-    'Complete': 'success',
     'Completed': 'success',
     'Cancelled': 'danger'
   }
-  return colors[status] || 'secondary'
+  return colors[normalized] || 'secondary'
 }
 
 function showValidationError(message) {

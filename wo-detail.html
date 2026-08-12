@@ -4,7 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>eWorkOrder | Work Order Detail</title>
-  <link rel="stylesheet" href="/src/style.css" />
+  <!-- FIX: removed a duplicate <link rel="stylesheet" href="/src/style.css">
+       that was added here. style.css is already loaded correctly via
+       `import './style.css'` in src/main.js (see script tag below), which
+       goes through Vite's proper module/HMR pipeline. This raw <link> tag
+       loaded the SAME file through a second, separately-cached path
+       (plain browser HTTP caching, not Vite's HMR), which could serve a
+       stale copy independently of the JS-imported one - a likely source
+       of the "sometimes fixed, sometimes not" flakiness. -->
 </head>
 <body>
   <div class="app-shell">
@@ -85,61 +92,39 @@
             </div>
           </div>
 
-          <div class="row g-4 align-items-start">
-            <div class="col-lg-8">
-              <div class="table-wrap wo-table-wrap">
-                <table class="table wo-table op-table mb-0 align-middle">
-                  <!-- 
-                    FINAL COLGROUP:
-                    Total width = 1362px
-                    Semua kolom OP (kolom ke-2) akan sejajar karena 
-                    table-layout:fixed dan colgroup ini.
-                  -->
-                  <colgroup>
-                    <col style="width:44px">    <!-- 1: expand chevron -->
-                    <col style="width:74px">    <!-- 2: OP number -->
-                    <col style="width:260px">   <!-- 3: Operation Name -->
-                    <col style="width:130px">   <!-- 4: Barcode -->
-                    <col style="width:172px">   <!-- 5: Requirement -->
-                    <col style="width:170px">   <!-- 6: Status -->
-                    <col style="width:70px">    <!-- 7: Dept -->
-                    <col style="width:92px">    <!-- 8: Machine -->
-                    <col style="width:112px">   <!-- 9: Assigned -->
-                    <col style="width:64px">    <!-- 10: Std Hrs -->
-                    <col style="width:64px">    <!-- 11: Act Hrs -->
-                    <col style="width:110px">   <!-- 12: Actions -->
-                  </colgroup>
-                  <thead>
-                    <tr class="text-nowrap">
-                      <th class="ps-4"></th>
-                      <th class="ps-1">OP</th>
-                      <th>Operation Name</th>
-                      <th>Operation Barcode</th>
-                      <th>Requirement</th>
-                      <th>Status</th>
-                      <th>Dept</th>
-                      <th class="d-none d-lg-table-cell">Machine</th>
-                      <th class="d-none d-lg-table-cell">Assigned</th>
-                      <th class="d-none d-xl-table-cell text-center">Std Hrs</th>
-                      <th class="d-none d-xl-table-cell text-center">Act Hrs</th>
-                      <th class="text-end pe-4">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody id="opTableBody"></tbody>
-                </table>
+            <div class="row g-4 align-items-start">
+              <div class="col-12">
+                <div class="table-wrap wo-table-wrap">
+                 <div class="wo-grid">
+                    <div class="wo-grid-row wo-grid-header text-nowrap">
+                      <div class="wo-grid-cell text-center" style="grid-column: 1" data-col="1"></div>
+                      <div class="wo-grid-cell text-center" style="grid-column: 2" data-col="2">OP</div>
+                      <div class="wo-grid-cell text-center" style="grid-column: 3" data-col="3">Sequence</div>
+                      <div class="wo-grid-cell text-center" style="grid-column: 4" data-col="4">Scope</div>
+                      <div class="wo-grid-cell hide-on-lg text-center" style="grid-column: 5" data-col="5">Operation Barcode</div>
+                      <div class="wo-grid-cell text-center" style="grid-column: 6" data-col="6">Status</div>
+                      <div class="wo-grid-cell text-center" style="grid-column: 7" data-col="7">Dept</div>
+                      <div class="wo-grid-cell text-center" style="grid-column: 8" data-col="8">Operation Code</div>
+                      <div class="wo-grid-cell hide-on-sm text-center" style="grid-column: 9" data-col="9">Working On</div>
+                      <div class="wo-grid-cell hide-on-lg text-center" style="grid-column: 10" data-col="10">Last Revision</div>
+                      <div class="wo-grid-cell hide-on-xl text-center" style="grid-column: 11" data-col="11">Std Hrs</div>
+                      <div class="wo-grid-cell hide-on-xl text-center" style="grid-column: 12" data-col="12">Act Hrs</div>
+                      <div class="wo-grid-cell text-center" style="grid-column: 13" data-col="13">Actions</div>
+                     </div>
+                    <div id="opTableBody"></div>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div class="col-lg-4">
-              <div class="op-detail-panel" id="opDetailPanel">
-                <div class="op-detail-empty">
-                  <div class="empty-state-icon">
-                    <i class="bi bi-gear-wide-connected"></i>
-                  </div>
-                  <h6 class="fw-semibold text-dark mb-2">No Operation Selected</h6>
-                  <p class="mb-0 small">Select an operation from the list to view details and workflow actions</p>
-                  <small class="text-muted d-block mt-2">Click on any operation row or the View button</small>
+            <div class="op-detail-panel" id="opDetailPanel">
+              <div class="op-detail-empty">
+                <div class="empty-state-icon">
+                  <i class="bi bi-gear-wide-connected"></i>
                 </div>
+                <h6 class="fw-semibold text-dark mb-2">No Operation Selected</h6>
+                <p class="mb-0 small">Select an operation from the list to view details and workflow actions</p>
+                <small class="text-muted d-block mt-2">Click on any operation row or the View button</small>
               </div>
             </div>
           </div>
@@ -165,7 +150,6 @@
               </div>
             </div>
           </div>
-        </div>
       </main>
     </div>
   </div>
@@ -202,13 +186,12 @@
             </div>
             <div class="col-6">
               <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Status <span class="text-danger">*</span></label>
-              <select class="form-select form-select-sm" id="f_status" required>
-                <option value="">-- Select --</option>
-                <option value="In Progress">In Progress</option>
-                <option value="Waiting">Waiting</option>
-                <option value="Complete">Complete</option>
-                <option value="Pending">Pending</option>
-              </select>
+               <select class="form-select form-select-sm" id="f_status" required>
+                 <option value="">-- Select --</option>
+                 <option value="Not Started">Not Started</option>
+                 <option value="In Progress">In Progress</option>
+                 <option value="Completed">Completed</option>
+               </select>
             </div>
           </div>
         </div>
@@ -387,11 +370,27 @@
     </div>
   </div>
 
+  <div class="modal fade" id="stampDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold">Stamp Details</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body" id="stampDetailBody">
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="modal fade" id="inspectionStampModal" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title fw-bold">Digital Inspection Stamp</h5>
+          <h5 class="modal-title fw-bold">Final / Closing Stamp</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
@@ -431,7 +430,7 @@
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
           <button type="button" class="btn btn-primary" id="btnApplyInspectionStamp">
             <span id="inspectionSpinner" class="spinner-border spinner-border-sm d-none me-1"></span>
-            Apply Inspection Stamp
+            Apply Closing Stamp
           </button>
         </div>
       </div>

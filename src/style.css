@@ -311,7 +311,7 @@ body {
   position: absolute; top: 8px; right: 8px; width: 8px; height: 8px;
   background: var(--danger); border-radius: 50%; border: 2px solid #fff;
 }
-.content { padding: 1.75rem; flex: 1; }
+.content { padding: 2rem; flex: 1; }
 
 /* ===== Page header ===== */
 .page-header { margin-bottom: 1.5rem; }
@@ -382,6 +382,10 @@ body {
   border-radius: 20px; padding: .2rem .65rem;
   font-size: .78rem; font-weight: 700;
   border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.2;
 }
 .scope-cell { min-width: 180px; max-width: 280px; }
 .scope-head {
@@ -423,7 +427,7 @@ body {
   box-shadow: var(--shadow-sm);
 }
 
-/* ===== WO OPERATIONS TABLE — FIXED ===== */
+/* ===== WO OPERATIONS TABLE — CSS GRID ===== */
 .wo-table-wrap {
   border-radius: var(--radius-lg);
   border: 1px solid var(--border);
@@ -434,117 +438,173 @@ body {
 }
 
 /*
-  FIX (misalignment bug): table-layout dikembalikan ke FIXED.
-  Dengan "auto", browser menghitung ulang lebar tiap kolom per baris
-  berdasarkan konten (mis. "230" vs "5300"), sehingga kolom OP/chevron
-  ikut bergeser antar baris (efek staircase yang dilaporkan user).
-  Dengan "fixed" + <colgroup> di HTML, lebar kolom dikunci sekali untuk
-  seluruh tabel dan konsisten di semua baris (parent & child rows).
+  CSS Grid replaces table-layout:fixed + colgroup.
+  Grid-template-columns is the single source of truth for column widths,
+  structurally enforced for every row (header, parent, sequence) because
+  all rows share the same grid container and explicit column placement.
 */
-table.wo-table,
-table.op-table {
-  table-layout: fixed;
+.wo-grid {
+  min-width: 900px;
   width: 100%;
-  /* min-width = sum of the colgroup widths below (44+74+220+130+172+132+
-     70+92+112+64+64+100 = 1274px). With table-layout:fixed, width:100%
-     makes the table fill the container when there's room; min-width
-     stops it shrinking below that sum on narrow screens, so badges never
-     get squeezed into overflow - .wo-table-wrap's overflow-x:auto takes
-     over instead. */
-  min-width: 1274px;
-  border-collapse: separate;
-  border-spacing: 0;
 }
 
-/*
-  Isolate any nested table from the parent's column sizing.
-  table-layout:fixed on the PARENT already guarantees, per spec, that
-  column widths come only from the <colgroup>/first row - not from the
-  width of content in later rows, including a nested <table>. This block
-  is a defensive backstop in case a sequence row wraps its content in a
-  nested table (e.g. inside a `.op-seq-wrap-row` cell): the nested table
-  gets its own independent auto layout and simply fills the width of the
-  single parent cell it lives in, without ever feeding back into the
-  parent .op-table's column widths.
-*/
-.op-table .op-seq-wrap-row > td {
-  width: auto;         /* this cell's own width is still set by colgroup via colspan */
-  padding: 0;           /* let the nested table define its own inner spacing */
-}
-.op-table .op-seq-wrap-row table {
-  table-layout: auto;   /* independent layout, isolated from the parent */
-  width: 100%;          /* fill the available space inside its own cell only */
+.wo-grid-row {
+  display: grid;
+  grid-template-columns: 48px 80px 72px minmax(140px,1.5fr) minmax(100px,1fr) minmax(120px,1.2fr) 72px minmax(100px,1.5fr) minmax(100px,1.5fr) minmax(80px,1fr) 64px 64px 110px;
 }
 
-table.wo-table thead { background: var(--border-light); }
-table.wo-table th {
-  font-size: 0.7rem;
+.wo-grid-row > .wo-grid-cell {
+  border-bottom: 1px solid var(--border-light);
+  padding: 0.85rem 0.65rem;
+  font-size: 0.86rem;
+  display: flex;
+  align-items: center;
+  min-height: 1px;
+  transition: background 0.15s ease;
+}
+
+.wo-grid-row:last-child > .wo-grid-cell,
+#opTableBody .wo-grid-row:last-child > .wo-grid-cell { border-bottom: none; }
+
+.wo-grid-header {
+  background: var(--border-light);
+}
+
+.wo-grid-header .wo-grid-cell {
+  font-size: 0.72rem;
   text-transform: uppercase;
   color: var(--muted);
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   border-bottom: 2px solid var(--border);
   padding: 0.85rem 0.65rem;
   font-weight: 700;
   white-space: nowrap;
+  background: var(--border-light);
 }
-table.wo-table tbody tr { cursor: pointer; transition: background 0.15s; }
-table.wo-table tbody tr:hover { background: var(--primary-subtle); }
-table.wo-table td {
-  border-bottom: 1px solid var(--border-light);
-  padding: 0.85rem 0.65rem;
-  font-size: 0.86rem;
-  vertical-align: middle;
-}
-table.wo-table tbody tr:last-child td { border-bottom: none; }
-table.wo-table .wo-id { font-weight: 700; color: var(--primary-dark); }
 
-/*
-  Lebar kolom sekarang HANYA didefinisikan lewat <colgroup> di HTML
-  (satu sumber kebenaran, konsisten di semua baris). Aturan per-kolom
-  di bawah ini dipertahankan hanya untuk alignment teks / behaviour
-  konten (nowrap, text-align), BUKAN untuk menentukan width lagi -
-  supaya tidak terjadi konflik dua sumber lebar kolom yang berbeda.
-*/
+.wo-grid-row { cursor: pointer; transition: background 0.15s; }
+.wo-grid-row:not(.wo-grid-header):hover { background: var(--primary-subtle); }
 
 /* Kolom expand icon */
-table.wo-table td:nth-child(1) {
-  padding-left: 1rem;
+.wo-grid-cell[data-col="1"] { padding-left: 1.25rem; justify-content: center; }
+
+.op-expand-btn {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  color: var(--muted);
+}
+.op-expand-btn:hover {
+  background: var(--primary-light);
+  color: var(--primary-dark);
+}
+.op-expand-icon {
+  font-size: 0.9rem;
+  transition: transform 0.2s ease;
 }
 
-/* OP number */
-table.wo-table td:nth-child(2) {
-  white-space: nowrap;
+/* OP number - center aligned */
+.wo-grid-cell[data-col="2"] { 
+  white-space: nowrap; 
+  justify-content: center;
 }
 
-/* Operation Name — beri ruang lebih, boleh wrap */
-table.wo-table td:nth-child(3) {
-  overflow: hidden;
+/* Sequence - center aligned */
+.wo-grid-cell[data-col="3"] { 
+  justify-content: center;
 }
 
-/* Requirement — jangan potong */
-table.wo-table td:nth-child(5) {
-  white-space: nowrap;
+/* Scope - allow truncation */
+.wo-grid-cell[data-col="4"] { 
+  justify-content: center;
+}
+
+/* Barcode */
+.wo-grid-cell[data-col="5"] { 
+  justify-content: center;
 }
 
 /* Status — jangan potong */
-table.wo-table td:nth-child(6) {
-  white-space: nowrap;
+.wo-grid-cell[data-col="6"] { 
+  white-space: nowrap; 
+  justify-content: center;
+}
+
+/* Dept */
+.wo-grid-cell[data-col="7"] { 
+  white-space: nowrap; 
+  justify-content: center;
+  align-items: center;
+}
+
+/* Operation Code */
+.wo-grid-cell[data-col="8"] { 
+  justify-content: center;
+}
+
+/* Working On */
+.wo-grid-cell[data-col="9"] { 
+  justify-content: center;
+}
+
+/* Last Revision */
+.wo-grid-cell[data-col="10"] { 
+  justify-content: center;
 }
 
 /* Std Hrs */
-table.wo-table td:nth-child(10) {
-  text-align: center;
+.wo-grid-cell[data-col="11"] { 
+  justify-content: center;
 }
 
 /* Act Hrs */
-table.wo-table td:nth-child(11) {
-  text-align: center;
+.wo-grid-cell[data-col="12"] { 
+  justify-content: center;
 }
 
 /* Actions */
-table.wo-table td:nth-child(12) {
-  text-align: right;
+.wo-grid-cell[data-col="13"] { 
+  justify-content: center;
   padding-right: 1rem;
+}
+
+/* Responsive column hiding — mirrors d-none d-lg-table-cell / d-xl-table-cell */
+@media (max-width: 1199.98px) {
+  .hide-on-xl { display: none; }
+  .wo-grid-row > .wo-grid-cell {
+    padding: 0.8rem 0.6rem;
+    font-size: 0.84rem;
+  }
+  .wo-grid-header .wo-grid-cell {
+    padding: 0.8rem 0.6rem;
+  }
+}
+@media (max-width: 991.98px) {
+  .hide-on-lg { display: none; }
+  .wo-grid-row > .wo-grid-cell {
+    padding: 0.75rem 0.5rem;
+    font-size: 0.82rem;
+  }
+  .wo-grid-header .wo-grid-cell {
+    padding: 0.75rem 0.5rem;
+    font-size: 0.68rem;
+  }
+}
+@media (max-width: 767.98px) {
+  .hide-on-sm { display: none; }
+  .wo-grid-row > .wo-grid-cell {
+    padding: 0.65rem 0.45rem;
+    font-size: 0.78rem;
+  }
+  .wo-grid-header .wo-grid-cell {
+    padding: 0.65rem 0.45rem;
+    font-size: 0.65rem;
+    letter-spacing: 0.04em;
+  }
 }
 
 /* Operation Name cell: nama boleh wrap */
@@ -566,71 +626,51 @@ table.wo-table td:nth-child(12) {
   font-weight: 500;
 }
 
-/* Requirement badge — full text, no clip */
-.req-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  border-radius: 20px;
-  padding: 0.28rem 0.7rem;
-  white-space: nowrap;
-}
-.req-clock {
-  background: var(--warning-light);
-  color: #b45309;
-  border: 1px solid #fcd34d;
-}
-.req-stamp {
-  background: var(--success-light);
-  color: var(--success);
-  border: 1px solid #bbf7d0;
-}
-
 /* Status badge — full text */
-.wo-table .badge,
-.op-table .badge {
+.wo-grid .badge {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   white-space: nowrap;
   font-size: 0.75rem;
-  padding: 0.3rem 0.75rem;
+  padding: 0.35rem 0.75rem;
   border-radius: 20px;
   font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
 /* Operation table parent rows */
-.op-table .op-parent-row { transition: all 0.15s ease; }
-.op-table .op-parent-row td { padding: 0.9rem 0.65rem; }
-.op-table .op-parent-row .op-detail-no {
+.op-parent-row { 
+  transition: all 0.15s ease; 
+  background: #fff;
+}
+.op-parent-row > .wo-grid-cell { 
+  padding: 1rem 0.85rem; 
+  font-weight: 500;
+}
+.op-parent-row .op-detail-no {
   font-weight: 700;
   color: var(--deep);
-  background: var(--border-light);
+  background: var(--primary-light);
   border-radius: var(--radius-sm);
-  padding: 0.2rem 0.55rem;
-  font-size: 0.8rem;
+  padding: 0.25rem 0.65rem;
+  font-size: 0.82rem;
   letter-spacing: 0.02em;
   font-family: 'SF Mono', 'Fira Code', monospace;
   white-space: nowrap;
-  /* FIX (root cause of the misalignment bug): this class is applied
-     directly to a <td> element. display:inline-block + min-width used to
-     be set here, which took the <td> out of normal table-cell layout -
-     combined with a font-size difference between completed/active rows
-     (see .op-row-selectable above), this made the browser size the cell
-     inconsistently per row instead of respecting the <colgroup> width.
-     A <td> doesn't need display:inline-block or min-width to look like a
-     badge - background/padding/border-radius/text-align work fine as a
-     normal table-cell, and its width is already locked by <colgroup>. */
   text-align: center;
+  border: 1px solid rgba(13, 148, 136, 0.15);
 }
 
 /* Sequence child rows */
-.op-seq-row td { background: #fafafa; border-bottom: 1px solid #f0f0f0; }
-.op-seq-row td:first-child { border-left: 3px solid var(--border); }
+.op-seq-row > .wo-grid-cell { 
+  background: #fafbfc; 
+  border-bottom: 1px solid #f0f0f0; 
+  padding: 0.85rem 0.85rem 0.85rem 1.5rem;
+}
+.op-seq-row > .wo-grid-cell:first-child { 
+  border-left: 3px solid var(--primary-light); 
+}
 
 /* Barcode cell */
 .barcode-cell {
@@ -673,18 +713,27 @@ table.wo-table td:nth-child(12) {
 /* ===== Toolbar ===== */
 .toolbar {
   background: #fff; border: 1px solid var(--border); border-radius: 14px;
-  padding: .9rem 1rem; margin-bottom: 1.25rem;
+  padding: 1rem 1.25rem; margin-bottom: 1.25rem;
   box-shadow: 0 1px 2px rgba(5,50,43,.04), 0 8px 24px -12px rgba(5,50,43,.12);
   display: flex; gap: .75rem; flex-wrap: wrap;
   align-items: center;
 }
 .toolbar .form-control, .toolbar .form-select { flex: 1; min-width: 200px; }
 
+.input-group {
+  box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  border-radius: var(--radius-sm);
+  transition: box-shadow 0.2s ease;
+}
+.input-group:focus-within {
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
+}
+
 /* ===== Status badges ===== */
 .status-badge { padding: 0.35rem 0.8rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.02em; }
-.status-complete { background: var(--success-light); color: var(--success); }
-.status-progress { background: var(--primary-light); color: var(--primary-dark); }
-.status-waiting { background: var(--warning-light); color: #b45309; }
+.status-completed { background: var(--success-light); color: var(--success); }
+.status-in-progress { background: var(--primary-light); color: var(--primary-dark); }
+.status-not-started { background: var(--warning-light); color: #b45309; }
 .status-error { background: var(--danger-light); color: var(--danger); }
 
 /* ===== Module nav ===== */
@@ -761,8 +810,15 @@ table.wo-table td:nth-child(12) {
 .action-btn { border-radius: 8px; }
 .btn-group-sm .btn {
   border-radius: 6px;
-  font-size: 0.8rem;
-  padding: 0.35rem 0.6rem;
+  font-size: 0.78rem;
+  padding: 0.4rem 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  transition: all 0.15s ease;
+}
+.btn-group-sm .btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
 }
 .btn-outline-success:hover { background: var(--success); border-color: var(--success); color: #fff; }
 
@@ -907,10 +963,15 @@ table.wo-table td:nth-child(12) {
   background: #f8fbfa;
   border: 1px solid var(--border);
   border-radius: 10px;
-  padding: .7rem .9rem;
+  padding: 0.85rem 1rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.info-field:hover {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.05);
 }
 .info-label { font-size: .72rem; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .3px; }
-.info-value { font-size: .95rem; font-weight: 600; color: var(--deep); margin-top: .2rem; }
+.info-value { font-size: .95rem; font-weight: 600; color: var(--deep); margin-top: .25rem; }
 
 .task-item {
   display: flex;
@@ -1025,10 +1086,8 @@ table.wo-table td:nth-child(12) {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
-  padding: 1.5rem;
+  padding: 1.75rem;
   min-height: 420px;
-  position: sticky;
-  top: 84px;
   transition: box-shadow 0.2s ease;
 }
 .op-detail-panel:hover { box-shadow: var(--shadow-md); }
@@ -1150,8 +1209,12 @@ table.wo-table td:nth-child(12) {
 }
 .op-detail-badges { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
 .op-detail-section { margin-top: 1.25rem; }
-.op-detail-section .section-label { margin-bottom: 0.6rem; }
-.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+.op-detail-section .section-label { margin-bottom: 0.6rem; font-size: 0.78rem; }
+.info-grid { 
+  display: grid; 
+  grid-template-columns: 1fr 1fr; 
+  gap: 0.75rem; 
+}
 .op-list-checks { list-style: none; padding: 0; margin: 0; }
 .op-list-checks li {
   display: flex; align-items: center; gap: 0.5rem;
@@ -1170,8 +1233,8 @@ table.wo-table td:nth-child(12) {
   font-size: 0.85rem; color: var(--text); line-height: 1.5;
 }
 
-/* MES Stepper */
-.op-flow { display: flex; flex-direction: column; gap: 1rem; }
+/* Workflow */
+.op-workflow { display: flex; flex-direction: column; gap: 0.75rem; }
 .op-stepper {
   display: flex; align-items: flex-start; gap: 0;
   justify-content: space-between;
@@ -1179,75 +1242,238 @@ table.wo-table td:nth-child(12) {
 }
 .op-stepper::before {
   content: ''; position: absolute;
-  top: 16px; left: 20px; right: 20px;
+  top: 15px; left: 18px; right: 18px;
   height: 2px; background: var(--border); z-index: 0;
 }
 .op-stepper .op-step {
   display: flex; flex-direction: column; align-items: center;
-  gap: 0.4rem; position: relative; z-index: 1; flex: 1;
+  gap: 0.35rem; position: relative; z-index: 1; flex: 1;
 }
 .op-stepper .op-step-dot {
-  width: 34px; height: 34px; border-radius: 50%;
+  width: 28px; height: 28px; border-radius: 50%;
   background: var(--border-light); border: 2px solid var(--border);
   display: flex; align-items: center; justify-content: center;
-  font-size: 0.8rem; color: var(--muted);
+  font-size: 0.7rem; color: var(--muted);
   transition: all 0.25s ease;
 }
 .op-stepper .op-step.done .op-step-dot { background: var(--success); border-color: var(--success); color: #fff; }
-.op-stepper .op-step.current .op-step-dot { background: var(--primary); border-color: var(--primary); color: #fff; box-shadow: 0 0 0 4px rgba(13, 148, 136, 0.15); }
+.op-stepper .op-step.current .op-step-dot { background: var(--primary); border-color: var(--primary); color: #fff; box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15); }
 .op-step-label {
-  font-size: 0.65rem; font-weight: 600; color: var(--muted);
-  text-transform: uppercase; letter-spacing: 0.03px; white-space: nowrap;
+  font-size: 0.62rem; font-weight: 600; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.02px; white-space: nowrap;
+  margin-top: 0.3rem;
 }
 .op-step.done .op-step-label { color: var(--success); }
 .op-step.current .op-step-label { color: var(--primary-dark); font-weight: 700; }
 
-.op-done-steps { display: flex; flex-wrap: wrap; gap: 0.4rem; }
-.op-done-chip {
-  display: inline-flex; align-items: center; gap: 0.3rem;
-  font-size: 0.72rem; font-weight: 600;
-  color: var(--success); background: var(--success-light);
-  border: 1px solid #bbf7d0; border-radius: 20px;
-  padding: 0.2rem 0.65rem;
-}
-.op-done-chip i { font-size: 0.7rem; }
+.op-workflow-body { display: flex; flex-direction: column; gap: 0.5rem; }
 
-.op-action-card {
-  display: flex; align-items: center; gap: 1rem;
-  padding: 1.1rem;
-  background: linear-gradient(135deg, var(--primary-subtle), #fff);
-  border: 1px solid rgba(13, 148, 136, 0.2);
+.op-history { background: var(--border-light); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.5rem 0.65rem; }
+.op-history-title { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; color: var(--muted); letter-spacing: 0.04em; margin-bottom: 0.35rem; }
+.op-history-list { display: flex; flex-direction: column; gap: 0.3rem; }
+.op-history-item { display: flex; align-items: center; gap: 0.45rem; }
+.op-history-icon { width: 20px; height: 20px; border-radius: 50%; background: var(--success-light); color: var(--success); display: flex; align-items: center; justify-content: center; font-size: 0.6rem; flex-shrink: 0; }
+.op-history-content { flex: 1; min-width: 0; }
+.op-history-label { font-size: 0.75rem; font-weight: 600; color: var(--deep); }
+.op-history-meta { font-size: 0.65rem; color: var(--muted); margin-top: 0.05rem; }
+
+.op-stamp-preview { display: flex; align-items: center; gap: 0.65rem; background: #fff; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.5rem 0.65rem; }
+.op-stamp-preview .op-stamp { transform: rotate(-12deg); }
+.op-stamp-meta { display: flex; flex-direction: column; gap: 0.12rem; }
+.op-stamp-by { font-size: 0.7rem; font-weight: 600; color: var(--deep); }
+.op-stamp-at { font-size: 0.65rem; color: var(--muted); }
+
+.op-action-bar { padding: 0.2rem 0; }
+.op-action-btn { padding: 0.45rem 0.9rem; border-radius: var(--radius-sm); font-size: 0.82rem; font-weight: 600; }
+
+.op-step-meta {
+  font-size: 0.58rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-align: center;
+  margin-top: 0.15rem;
+  white-space: nowrap;
+}
+.op-step-meta--final {
+  color: var(--success);
+  font-weight: 700;
+}
+
+.op-finalized { display: flex; align-items: center; gap: 0.45rem; background: var(--success-light); border: 1px solid #bbf7d0; border-radius: var(--radius-sm); padding: 0.5rem 0.65rem; }
+.op-finalized-badge { font-size: 0.75rem; font-weight: 700; color: var(--success); display: inline-flex; align-items: center; gap: 0.3rem; }
+.op-finalized-meta { font-size: 0.68rem; color: #15803d; }
+
+/* Stamp indicator (table) */
+.stamp-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--success);
+  background: var(--success-light);
+  border: 1px solid #bbf7d0;
+  border-radius: 20px;
+  padding: 0.25rem 0.6rem;
+  white-space: nowrap;
+}
+.stamp-indicator-stamp {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  color: var(--success);
+}
+.stamp-indicator-stamp svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.stamp-indicator-text {
+  white-space: nowrap;
+}
+.stamp-indicator-meta {
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: #15803d;
+  white-space: nowrap;
+}
+.stamp-indicator--empty {
+  color: var(--muted);
+  background: var(--border-light);
+  border-color: var(--border);
+}
+.stamp-indicator--empty .stamp-indicator-stamp {
+  color: var(--muted);
+}
+.stamp-indicator--empty .stamp-indicator-text {
+  color: var(--muted);
+}
+
+/* Stamp detail modal */
+.stamp-detail-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  text-align: center;
+}
+.stamp-detail-stamp {
+  width: 160px;
+  height: 160px;
+  color: #0a0a0a;
+}
+.stamp-detail-stamp svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.stamp-detail-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--success);
+  background: var(--success-light);
+  border: 1px solid #bbf7d0;
+  border-radius: 20px;
+  padding: 0.35rem 0.85rem;
+}
+.stamp-detail-meta {
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  text-align: left;
+}
+.stamp-detail-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.stamp-detail-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
+.stamp-detail-value {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--deep);
+}
+.stamp-detail-finalized {
+  border-top: 1px solid var(--border);
+  padding-top: 0.75rem;
+  margin-top: 0.25rem;
+}
+.stamp-detail-finalized .stamp-detail-value {
+  color: #15803d;
+}
+
+/* Stamp details card */
+.stamp-details {
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+  background: #fff;
+  border: 1px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: 0 2px 8px rgba(13, 148, 136, 0.06);
+  padding: 1rem 1.15rem;
 }
-.op-action-icon {
-  width: 44px; height: 44px; border-radius: var(--radius);
-  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-  color: #fff; display: flex; align-items: center; justify-content: center;
-  font-size: 1.2rem; flex-shrink: 0;
-  box-shadow: 0 4px 10px rgba(13, 148, 136, 0.2);
+.stamp-details-stamp {
+  flex-shrink: 0;
 }
-.op-action-info { flex: 1; min-width: 0; }
-.op-action-title { font-weight: 700; font-size: 0.95rem; color: var(--deep); }
-.op-action-desc { font-size: 0.78rem; color: var(--muted); margin-top: 0.15rem; }
-.op-action-btn { flex-shrink: 0; padding: 0.55rem 1.1rem; border-radius: var(--radius-sm); }
-.op-done-msg {
-  display: flex; align-items: center; gap: 0.5rem;
-  color: var(--success); font-weight: 600; font-size: 0.88rem;
-  background: var(--success-light); border: 1px solid #bbf7d0;
-  border-radius: var(--radius-sm); padding: 0.8rem 1rem;
+.stamp-details-stamp .inspection-stamp-area {
+  padding: 0;
 }
-.op-all-done { text-align: center; padding: 2rem 1rem; color: var(--deep); }
-.op-complete-steps {
-  margin-top: 1rem; text-align: left;
-  background: var(--success-light); border: 1px solid #bbf7d0;
-  border-radius: var(--radius-sm); padding: 0.9rem 1rem;
+.stamp-details-stamp .inspection-stamp {
+  width: 120px;
+  height: 120px;
 }
-.op-complete-steps div {
-  display: flex; align-items: center; gap: 0.5rem;
-  font-size: 0.85rem; color: #15803d; padding: 0.3rem 0;
+.stamp-details-meta {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem 0.75rem;
 }
-.op-complete-steps i { color: var(--success); }
+.stamp-details-row {
+  display: contents;
+}
+.stamp-details-row > * {
+  font-size: 0.78rem;
+}
+.stamp-details-label {
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.68rem;
+}
+.stamp-details-value {
+  font-weight: 600;
+  color: var(--deep);
+}
+.stamp-details-status {
+  color: var(--success);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.stamp-details-row--final .stamp-details-value {
+  color: #15803d;
+}
+
+@media (max-width: 480px) {
+  .op-stepper .op-step-dot { width: 24px; height: 24px; font-size: 0.6rem; }
+  .op-stepper::before { top: 12px; left: 14px; right: 14px; }
+  .op-step-label { font-size: 0.58rem; }
+  .op-stamp-preview { flex-direction: column; align-items: flex-start; }
+}
 
 /* Operation List table rows */
 /* FIX (root cause of the misalignment bug): font-size used to be scoped only
@@ -1258,7 +1484,7 @@ table.wo-table td:nth-child(12) {
    table-layout:fixed column width for completed rows only. Font-size is now
    the SAME for every .op-parent-row regardless of completed/selectable
    state, so this class of bug can't reappear based on row status. */
-.op-table .op-parent-row td { font-size: 0.88rem; }
+.op-parent-row > .wo-grid-cell { font-size: 0.88rem; }
 .op-row-selectable { cursor: pointer; }
 .op-row-selectable:hover { background: var(--primary-subtle); }
 
@@ -1285,7 +1511,8 @@ table.wo-table td:nth-child(12) {
 .modal-header { background: var(--border-light); border-bottom-color: var(--border); }
 
 /* ===== Scope Revision History ===== */
-.last-edited-cell { display: flex; flex-direction: column; gap: .15rem; }
+.last-edited-cell { display: flex; flex-direction: column; gap: .15rem; align-items: center; }
+.last-edited-date { font-size: .72rem; font-weight: 600; color: var(--deep-2); white-space: nowrap; }
 .revision-link {
   color: var(--primary); font-size: .72rem; font-weight: 600;
   text-decoration: none; padding: 0; width: fit-content; white-space: nowrap;
@@ -1363,8 +1590,13 @@ table.wo-table td:nth-child(12) {
 .table-empty h6 { font-size: 0.95rem; font-weight: 600; color: var(--deep-2); margin-bottom: 0.25rem; }
 .table-empty p { font-size: 0.85rem; margin: 0; }
 
-.op-parent-row.unmapped-parent td { background: var(--warning-subtle); }
-.op-parent-row.unmapped-parent:hover td { background: #fef3c7; }
+.op-parent-row.unmapped-parent > .wo-grid-cell { background: var(--warning-subtle); }
+.op-parent-row.unmapped-parent:hover > .wo-grid-cell { background: #fef3c7; }
+
+/* Subtle divider between operation groups */
+.op-parent-row + .op-seq-row:last-of-type > .wo-grid-cell {
+  border-bottom: 2px solid var(--border);
+}
 
 /* Hover left indicator */
 /* FIX: position:relative moved to apply to ALL .op-parent-row (previously
@@ -1416,12 +1648,109 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--primary); }
 
+/* ===== Operation Stamp ===== */
+.op-stamp-area {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 0 1rem;
+}
+.op-stamp {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  border: 3px solid var(--stamp-color, #dc2626);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  color: var(--stamp-color, #dc2626);
+  transform: rotate(-18deg);
+  position: relative;
+  text-align: center;
+  box-shadow: 0 0 0 2px #fff, 0 0 0 6px rgba(220, 38, 38, 0.12);
+  user-select: none;
+}
+.op-stamp::before {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  border: 1.5px solid var(--stamp-color, #dc2626);
+  opacity: 0.7;
+  pointer-events: none;
+}
+.stamp-center {
+  font-size: 2.6rem;
+  font-weight: 900;
+  line-height: 1;
+}
+.stamp-bottom {
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1.2;
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ===== Inspection Stamp Form Layout ===== */
+#inspectionStampForm > .row.g-2 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+  margin-right: 0;
+  margin-left: 0;
+}
+
+#inspectionStampForm > .row.g-2 > div:nth-child(5),
+#inspectionStampForm > .row.g-2 > div:nth-child(6) {
+  grid-column: span 2;
+}
+
+#inspectionStampForm > .row.g-2 > div {
+  display: flex;
+  flex-direction: column;
+  padding-right: 0;
+  padding-left: 0;
+}
+
+#inspectionStampForm > .row.g-2 > div .form-control {
+  margin-top: auto;
+}
+
+/* ===== Digital Inspection Stamp — Black Rubber Stamp ===== */
+.inspection-stamp-area {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.6rem 0 1.2rem;
+}
+.inspection-stamp {
+  position: relative;
+  width: 220px;
+  height: 220px;
+  transform: rotate(-12deg);
+  user-select: none;
+  filter: url(#stamp-rough);
+}
+.inspection-stamp svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.stamp-ink { color: #0a0a0a; }
+.stamp-ink-dim { color: #1a1a1a; opacity: 0.85; }
+
 /* ===== Responsive ===== */
 @media (max-width: 992px) {
   .sidebar { position: fixed; z-index: 100; transform: translateX(-100%); }
   .sidebar.open { transform: translateX(0); }
   .sidebar.collapsed { width: 260px; }
-  .content { padding: 1rem; }
+  .content { padding: 1.25rem; }
   .rev-compare-grid { grid-template-columns: 1fr; }
   .op-list-layout { grid-template-columns: 1fr; }
   .op-detail-panel { position: static; }
@@ -1436,7 +1765,7 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   .op-detail-panel { min-height: auto; }
 }
 @media (max-width: 576px) {
-  .content { padding: 0.75rem; }
+  .content { padding: 1rem; }
   .module-nav a span { display: none; }
   .module-nav a { padding: 0.75rem; }
 }
