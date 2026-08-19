@@ -1827,7 +1827,6 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   height: auto;
   transform: rotate(-4deg);
   user-select: none;
-  filter: url(#stamp-rough);
 }
 .closing-rect-stamp svg {
   width: 100%;

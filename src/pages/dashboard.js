@@ -12,13 +12,12 @@ const statusClass = {
 
 function renderStats(list) {
   const stats = [
-    { label: 'Total Active WO', value: list.length, icon: 'bi-clipboard-data', color: 'text-primary' },
-    { label: 'Completed WO', value: list.filter(w => w.status === 'Completed').length, icon: 'bi-check-circle', color: 'text-success' },
-    { label: 'Not Started WO', value: list.filter(w => w.status === 'Not Started').length, icon: 'bi-hourglass-split', color: 'text-warning' },
-    { label: 'In Progress WO', value: list.filter(w => w.status === 'In Progress').length, icon: 'bi-gear', color: 'text-primary' },
-{ label: 'Not Started', value: list.filter(w => w.lastOperation === '-').length, icon: 'bi-tools', color: 'text-secondary' },
+    { label: 'Total Active WO', value: 1, icon: 'bi-clipboard-data', color: 'text-primary' },
+    { label: 'Completed', value: list.filter(w => w.status === 'Completed').length, icon: 'bi-check-circle', color: 'text-success' },
+    { label: 'Not Started', value: list.filter(w => w.status === 'Not Started').length, icon: 'bi-hourglass-split', color: 'text-warning' },
+    { label: 'In Progress', value: list.filter(w => w.status === 'In Progress').length, icon: 'bi-gear', color: 'text-primary' },
   ]
-document.getElementById('statCards').innerHTML = stats.map(s => `
+  document.getElementById('statCards').innerHTML = stats.map(s => `
     <div class="col-xl col-md-4 col-6">
       <div class="stat-card">
         <div class="stat-icon ${s.color}"><i class="bi ${s.icon}"></i></div>
@@ -58,15 +57,19 @@ const routing = getRouting(w.id)
 }
 
 function applyFilters() {
-const q = document.getElementById('searchInput').value.toLowerCase()
+  const q = document.getElementById('searchInput').value.toLowerCase()
   const status = document.getElementById('filterStatus').value
   const dept = document.getElementById('filterDepartment').value
   const part = document.getElementById('filterPart').value
+  const fromDate = document.getElementById('filterFromDate').value
+  const toDate = document.getElementById('filterToDate').value
   const filtered = getWorkOrders().filter(w =>
     (w.id.toLowerCase().includes(q) || w.description.toLowerCase().includes(q)) &&
     (!status || w.status === status) &&
     (!dept || w.department === dept) &&
-    (!part || w.partNumber === part)
+    (!part || w.partNumber === part) &&
+    (!fromDate || (w.dueDate && w.dueDate >= fromDate)) &&
+    (!toDate || (w.dueDate && w.dueDate <= toDate))
   )
   renderTable(filtered)
 }
@@ -78,6 +81,8 @@ document.getElementById('searchInput').addEventListener('input', applyFilters)
 document.getElementById('filterStatus').addEventListener('change', applyFilters)
 document.getElementById('filterDepartment').addEventListener('change', applyFilters)
 document.getElementById('filterPart').addEventListener('change', applyFilters)
+document.getElementById('filterFromDate').addEventListener('change', applyFilters)
+document.getElementById('filterToDate').addEventListener('change', applyFilters)
 document.getElementById('toggleSidebar').addEventListener('click', () => {
   document.getElementById('sidebar').classList.toggle('collapsed')
 })

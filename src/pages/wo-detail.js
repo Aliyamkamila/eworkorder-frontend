@@ -771,6 +771,12 @@ async function loadOperationList(id) {
     unmappedSequences = []
     operations = mapRoutingToOperations(ops, routingData)
 
+    operations.forEach(op => {
+      if (op.status === 'Completed' && (op.sequences || []).every(seq => seq.status === 'Completed')) {
+        autoGenerateInspectionStamp(op)
+      }
+    })
+
     deriveActiveOperation()
     renderOperationList()
     const activeIdx = operations.findIndex(o => o.active)
@@ -1390,6 +1396,11 @@ async function completeOperationSimple(op, onDone) {
         sessionStorage.removeItem(`op_flow_${woId}_${op.opNo}`)
         addLog(woId, { user: getCurrentUser(), action: 'Operation Completed', detail: `OP ${op.opNo} marked as completed` })
 
+        const allSequencesCompleted = (op.sequences || []).every(seq => seq.status === 'Completed')
+        if (allSequencesCompleted) {
+          autoGenerateInspectionStamp(op)
+        }
+
         const nextActive = operations.findIndex(o => o.status !== 'Completed')
         operations.forEach((o, idx) => {
           o.active = (idx === nextActive)
@@ -1436,6 +1447,29 @@ async function saveOperation() {
     })
   } else {
     await completeOperationSimple(op)
+  }
+}
+
+function autoGenerateInspectionStamp(op) {
+  const wo = getWorkOrder(woId)
+  const now = new Date()
+  const qtyOrdered = wo ? (wo.qty || 0) : 0
+  const allSequencesCompleted = (op.sequences || []).every(seq => seq.status === 'Completed')
+  if (allSequencesCompleted && !op.inspectionStamp) {
+    op.inspectionStamp = {
+      irnNo: `IRN-${woId}-${op.opNo}`,
+      qtyOrdered,
+      qtyScrapped: 0,
+      qtyAccepted: qtyOrdered,
+      reviewedBy: getCurrentUser(),
+      reviewedDate: now.toISOString(),
+      reviewedDateDisplay: now.toLocaleString('en-GB', {
+        day: '2-digit', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+        timeZone: 'UTC'
+      }),
+    }
+    saveOperations(woId, operations)
   }
 }
 
@@ -1501,13 +1535,19 @@ function buildClosingRectStampSVG(stamp, size = 240) {
   const qtyAccepted = String(stamp.qtyAccepted != null ? stamp.qtyAccepted : '-')
   const reviewedBy = String(stamp.reviewedBy || '').trim().toUpperCase()
   const reviewedDate = stamp.reviewedDateDisplay ? stamp.reviewedDateDisplay.split(',')[0].trim().toUpperCase() : (stamp.reviewedDate ? new Date(stamp.reviewedDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase() : '-')
-  
+
   const filterId = `closing-rect-ink-${size}`
   const w = size
   const h = size * 0.75
   const cx = w / 2
   const cy = h / 2
-  
+  const stampColor = '#dc2626'
+  const reviewerInitials = reviewedBy ? reviewedBy.split(/\s+/).filter(Boolean).map(w => w[0]).join('').slice(0, 2) : ''
+
+  const sealCx = w - size * 0.18
+  const sealCy = h - size * 0.14
+  const sealR = size * 0.10
+
   return `
     <svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" style="overflow:visible;">
       <defs>
@@ -1517,25 +1557,30 @@ function buildClosingRectStampSVG(stamp, size = 240) {
           <feComposite in="d" in2="SourceGraphic" operator="in"/>
         </filter>
       </defs>
-      <g transform="rotate(-3, ${cx}, ${cy})" filter="url(#${filterId})" fill="#0a0a0a" stroke="none">
-        <rect x="4" y="4" width="${w - 8}" height="${h - 8}" rx="6" ry="6" fill="none" stroke="#0a0a0a" stroke-width="${size * 0.025}" opacity="0.90"/>
-        <rect x="10" y="10" width="${w - 20}" height="${h - 20}" rx="3" ry="3" fill="none" stroke="#0a0a0a" stroke-width="${size * 0.012}" opacity="0.70"/>
-        
-        <text x="${cx}" y="${cy - h * 0.32}" text-anchor="middle" font-size="${size * 0.065}" font-weight="900" font-family="'Courier New', Courier, monospace" letter-spacing="4" fill="#0a0a0a" opacity="0.95">FINAL / CLOSING STAMP</text>
-        <line x1="20" y1="${cy - h * 0.24}" x2="${w - 20}" y2="${cy - h * 0.24}" stroke="#0a0a0a" stroke-width="${size * 0.010}" opacity="0.60"/>
-        
-        <text x="24" y="${cy - h * 0.12}" text-anchor="start" font-size="${size * 0.042}" font-weight="700" font-family="'Courier New', Courier, monospace" fill="#0a0a0a" opacity="0.88">IRN No.: ${escapeHtml(irnNo)}</text>
-        
-        <text x="24" y="${cy + h * 0.02}" text-anchor="start" font-size="${size * 0.042}" font-weight="700" font-family="'Courier New', Courier, monospace" fill="#0a0a0a" opacity="0.88">Qty Ordered: ${escapeHtml(qtyOrdered)}</text>
-        
-        <text x="24" y="${cy + h * 0.14}" text-anchor="start" font-size="${size * 0.042}" font-weight="700" font-family="'Courier New', Courier, monospace" fill="#0a0a0a" opacity="0.88">Qty Scrapped / RTV: ${escapeHtml(qtyScrapped)}</text>
-        
-        <text x="24" y="${cy + h * 0.26}" text-anchor="start" font-size="${size * 0.042}" font-weight="700" font-family="'Courier New', Courier, monospace" fill="#0a0a0a" opacity="0.88">Qty Accepted: ${escapeHtml(qtyAccepted)}</text>
-        
-        <line x1="20" y1="${cy + h * 0.34}" x2="${w - 20}" y2="${cy + h * 0.34}" stroke="#0a0a0a" stroke-width="${size * 0.010}" opacity="0.60"/>
-        
-        <text x="${cx}" y="${cy + h * 0.46}" text-anchor="middle" font-size="${size * 0.045}" font-weight="700" font-family="'Courier New', Courier, monospace" letter-spacing="1" fill="#0a0a0a" opacity="0.90">${escapeHtml(reviewedBy)}</text>
-        <text x="${cx}" y="${cy + h * 0.58}" text-anchor="middle" font-size="${size * 0.040}" font-weight="600" font-family="'Courier New', Courier, monospace" fill="#0a0a0a" opacity="0.82">${escapeHtml(reviewedDate)}</text>
+      <g transform="rotate(-3, ${cx}, ${cy})" filter="url(#${filterId})" fill="${stampColor}" stroke="none">
+        <rect x="4" y="4" width="${w - 8}" height="${h - 8}" rx="6" ry="6" fill="none" stroke="${stampColor}" stroke-width="${size * 0.025}" opacity="0.90"/>
+        <rect x="10" y="10" width="${w - 20}" height="${h - 20}" rx="3" ry="3" fill="none" stroke="${stampColor}" stroke-width="${size * 0.012}" opacity="0.70"/>
+
+        <text x="${cx}" y="${cy - h * 0.32}" text-anchor="middle" font-size="${size * 0.065}" font-weight="900" font-family="'Courier New', Courier, monospace" letter-spacing="4" fill="${stampColor}" opacity="0.95">FINAL OPERATION COMPLETED</text>
+        <line x1="20" y1="${cy - h * 0.24}" x2="${w - 20}" y2="${cy - h * 0.24}" stroke="${stampColor}" stroke-width="${size * 0.010}" opacity="0.60"/>
+
+        <text x="24" y="${cy - h * 0.12}" text-anchor="start" font-size="${size * 0.042}" font-weight="700" font-family="'Courier New', Courier, monospace" fill="${stampColor}" opacity="0.88">IRN No.: ${escapeHtml(irnNo)}</text>
+
+        <text x="24" y="${cy + h * 0.02}" text-anchor="start" font-size="${size * 0.042}" font-weight="700" font-family="'Courier New', Courier, monospace" fill="${stampColor}" opacity="0.88">Qty Ordered: ${escapeHtml(qtyOrdered)}</text>
+
+        <text x="24" y="${cy + h * 0.14}" text-anchor="start" font-size="${size * 0.042}" font-weight="700" font-family="'Courier New', Courier, monospace" fill="${stampColor}" opacity="0.88">Qty Scrapped / RTV: ${escapeHtml(qtyScrapped)}</text>
+
+        <text x="24" y="${cy + h * 0.26}" text-anchor="start" font-size="${size * 0.042}" font-weight="700" font-family="'Courier New', Courier, monospace" fill="${stampColor}" opacity="0.88">Qty Accepted: ${escapeHtml(qtyAccepted)}</text>
+
+        <line x1="20" y1="${cy + h * 0.34}" x2="${w - 20}" y2="${cy + h * 0.34}" stroke="${stampColor}" stroke-width="${size * 0.010}" opacity="0.60"/>
+
+        <text x="${cx}" y="${cy + h * 0.46}" text-anchor="middle" font-size="${size * 0.045}" font-weight="700" font-family="'Courier New', Courier, monospace" letter-spacing="1" fill="${stampColor}" opacity="0.90">${escapeHtml(reviewedBy)}</text>
+        <text x="${cx}" y="${cy + h * 0.58}" text-anchor="middle" font-size="${size * 0.040}" font-weight="600" font-family="'Courier New', Courier, monospace" fill="${stampColor}" opacity="0.82">${escapeHtml(reviewedDate)}</text>
+
+        ${reviewerInitials ? `
+        <circle cx="${sealCx}" cy="${sealCy}" r="${sealR}" fill="none" stroke="${stampColor}" stroke-width="${size * 0.012}" opacity="0.85"/>
+        <text x="${sealCx}" y="${sealCy}" text-anchor="middle" dominant-baseline="central" font-size="${size * 0.048}" font-weight="900" font-family="'Courier New', Courier, monospace" letter-spacing="1" fill="${stampColor}" opacity="0.90">${escapeHtml(reviewerInitials)}</text>
+        ` : ''}
       </g>
     </svg>
   `
