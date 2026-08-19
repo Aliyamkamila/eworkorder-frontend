@@ -10,6 +10,7 @@ export default defineConfig({
         resetPin: resolve(__dirname, 'reset-pin.html'),
         dashboard: resolve(__dirname, 'dashboard.html'),
         woDetail: resolve(__dirname, 'wo-detail.html'),
+        assignments: resolve(__dirname, 'assignments.html'),
         success: resolve(__dirname, 'success.html'),
       },
     },

@@ -410,7 +410,7 @@ body {
   overflow: visible;
 }
 .scope-chevron {
-  transition: transform .2s; margin-top: .2rem;
+  transition: transform .2s;
   width: 18px; height: 18px; flex-shrink: 0;
   display: inline-flex; align-items: center; justify-content: center;
   border-radius: 5px; background: var(--primary-light);
@@ -1298,6 +1298,83 @@ body {
   color: var(--success);
   font-weight: 700;
 }
+.op-step-meta--not-stamped {
+  color: #b45309;
+  font-weight: 600;
+}
+
+/* Stamp step — not performed on a finalized operation */
+.op-stepper .op-step.not-stamped .op-step-dot {
+  background: #fef3c7;
+  border-color: #f59e0b;
+  color: #b45309;
+}
+.op-step.not-stamped .op-step-label {
+  color: #b45309;
+}
+
+/* Stamp Details — inline card (shown inside the detail panel) */
+.stamp-inline-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.55rem 0.75rem;
+}
+.stamp-inline-visual {
+  flex-shrink: 0;
+  cursor: pointer;
+  color: #0a0a0a;
+  opacity: 0.88;
+  transition: opacity 0.15s;
+}
+.stamp-inline-visual:hover { opacity: 1; }
+.stamp-inline-badge {
+  width: 80px;
+  height: 80px;
+}
+.stamp-inline-badge .op-stamp-round-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.stamp-inline-img {
+  width: 100%;
+  height: 100%;
+}
+.stamp-inline-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.stamp-inline-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+.stamp-inline-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.stamp-inline-value {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--deep);
+}
+.stamp-inline-view-btn {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  padding: 0.2rem 0.5rem;
+}
 
 .op-finalized { display: flex; align-items: center; gap: 0.45rem; background: var(--success-light); border: 1px solid #bbf7d0; border-radius: var(--radius-sm); padding: 0.5rem 0.65rem; }
 .op-finalized-badge { font-size: 0.75rem; font-weight: 700; color: var(--success); display: inline-flex; align-items: center; gap: 0.3rem; }
@@ -1321,7 +1398,13 @@ body {
   width: 22px;
   height: 22px;
   flex-shrink: 0;
-  color: var(--success);
+  color: #0a0a0a;
+}
+.stamp-indicator-icon {
+  flex-shrink: 0;
+  font-size: 1rem;
+  color: #0a0a0a;
+  line-height: 1;
 }
 .stamp-indicator-stamp svg {
   width: 100%;
@@ -1361,6 +1444,18 @@ body {
 .stamp-detail-stamp {
   width: 160px;
   height: 160px;
+  color: #0a0a0a;
+}
+/* Round variant for operation stamps */
+.stamp-detail-stamp--round {
+  width: 160px;
+  height: 160px;
+  color: #0a0a0a;
+}
+/* Rectangular variant for closing stamps */
+.stamp-detail-stamp--rect {
+  width: 280px;
+  height: auto;
   color: #0a0a0a;
 }
 .stamp-detail-stamp svg {
@@ -1658,58 +1753,55 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .op-stamp {
   width: 110px;
   height: 110px;
-  border-radius: 50%;
-  border: 3px solid var(--stamp-color, #dc2626);
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.15rem;
-  color: var(--stamp-color, #dc2626);
-  transform: rotate(-18deg);
-  position: relative;
-  text-align: center;
-  box-shadow: 0 0 0 2px #fff, 0 0 0 6px rgba(220, 38, 38, 0.12);
   user-select: none;
 }
-.op-stamp::before {
-  content: '';
-  position: absolute;
-  inset: 6px;
-  border-radius: 50%;
-  border: 1.5px solid var(--stamp-color, #dc2626);
-  opacity: 0.7;
-  pointer-events: none;
+.op-stamp svg {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
-.stamp-center {
-  font-size: 2.6rem;
-  font-weight: 900;
-  line-height: 1;
+
+/* Operation stamp — circular rubber stamp */
+.op-stamp-round-wrap {
+  flex-shrink: 0;
+  user-select: none;
 }
-.stamp-bottom {
-  font-size: 0.5rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  line-height: 1.2;
-  max-width: 90px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.op-stamp-round-svg {
+  display: block;
+  width: 100px;
+  height: auto;
+}
+.op-stamp-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.65rem;
+}
+.op-stamp-preview .op-stamp-round-wrap {
+  transform: rotate(-3deg);
 }
 
 /* ===== Inspection Stamp Form Layout ===== */
 #inspectionStampForm > .row.g-2 {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(12, 1fr);
   gap: 0.75rem;
   margin-right: 0;
   margin-left: 0;
 }
 
-#inspectionStampForm > .row.g-2 > div:nth-child(5),
-#inspectionStampForm > .row.g-2 > div:nth-child(6) {
-  grid-column: span 2;
-}
+#inspectionStampForm > .row.g-2 > div:nth-child(1) { grid-column: span 4; }
+#inspectionStampForm > .row.g-2 > div:nth-child(2) { grid-column: span 2; }
+#inspectionStampForm > .row.g-2 > div:nth-child(3) { grid-column: span 2; }
+#inspectionStampForm > .row.g-2 > div:nth-child(4) { grid-column: span 2; }
+#inspectionStampForm > .row.g-2 > div:nth-child(5) { grid-column: span 6; }
+#inspectionStampForm > .row.g-2 > div:nth-child(6) { grid-column: span 6; }
 
 #inspectionStampForm > .row.g-2 > div {
   display: flex;
@@ -1722,28 +1814,26 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   margin-top: auto;
 }
 
-/* ===== Digital Inspection Stamp — Black Rubber Stamp ===== */
-.inspection-stamp-area {
+/* ===== Digital Closing Stamp — Rectangular Rubber Stamp ===== */
+.closing-rect-stamp-area {
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0.6rem 0 1.2rem;
 }
-.inspection-stamp {
+.closing-rect-stamp {
   position: relative;
   width: 220px;
-  height: 220px;
-  transform: rotate(-12deg);
+  height: auto;
+  transform: rotate(-4deg);
   user-select: none;
   filter: url(#stamp-rough);
 }
-.inspection-stamp svg {
+.closing-rect-stamp svg {
   width: 100%;
-  height: 100%;
+  height: auto;
   display: block;
 }
-.stamp-ink { color: #0a0a0a; }
-.stamp-ink-dim { color: #1a1a1a; opacity: 0.85; }
 
 /* ===== Responsive ===== */
 @media (max-width: 992px) {
@@ -1768,4 +1858,296 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   .content { padding: 1rem; }
   .module-nav a span { display: none; }
   .module-nav a { padding: 0.75rem; }
+}
+
+
+/* ===== Assignments Page ===== */
+
+/* ── WO selector bar ─────────────────────────────────────────── */
+.asgn-selector-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.85rem 1.25rem;
+  flex-wrap: wrap;
+}
+.asgn-selector-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.asgn-selector-select {
+  max-width: 340px;
+  min-width: 220px;
+  flex: 1;
+}
+
+/* ── WO summary card ─────────────────────────────────────────── */
+.asgn-wo-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.1rem 1.4rem;
+}
+.asgn-wo-inner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 2.5rem;
+}
+.asgn-wo-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.45rem 0;
+  min-width: 140px;
+}
+.asgn-wo-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+.asgn-wo-value {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--deep);
+}
+.asgn-progress-pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: var(--border-light);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 0.18rem 0.65rem;
+  color: var(--muted);
+}
+.asgn-progress-pill--done {
+  background: var(--success-light);
+  border-color: #6ee7b7;
+  color: #065f46;
+}
+
+/* ── Op count chip ───────────────────────────────────────────── */
+.asgn-op-count {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--border-light);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 0.2rem 0.75rem;
+}
+
+/* ── Operations table ────────────────────────────────────────── */
+#asgnTable thead th {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  background: var(--border-light);
+  border-bottom: 1px solid var(--border);
+  padding: 0.7rem 1rem;
+  white-space: nowrap;
+}
+#asgnTable td {
+  font-size: 0.85rem;
+  padding: 0.75rem 1rem;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--border-light);
+  color: var(--deep);
+}
+#asgnTable tbody tr:last-child td {
+  border-bottom: none;
+}
+.asgn-op-row {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.asgn-op-row:hover td {
+  background: var(--primary-subtle);
+}
+/* Post-assign row highlight — fades out via JS */
+.asgn-op-row--highlight td {
+  background: var(--success-subtle) !important;
+  animation: asgnHighlightFade 2.5s ease forwards;
+}
+@keyframes asgnHighlightFade {
+  0%   { background: var(--success-light); }
+  100% { background: transparent; }
+}
+
+/* ── Assignment status badges ────────────────────────────────── */
+.asgn-status-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.22rem 0.6rem;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+.asgn-status-badge--assigned {
+  background: var(--success-light);
+  color: #065f46;
+}
+.asgn-status-badge--unassigned {
+  background: var(--border-light);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+.asgn-employee-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--deep);
+}
+
+/* ── Requirement type badges ─────────────────────────────────── */
+.asgn-req-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.73rem;
+  font-weight: 600;
+  padding: 0.22rem 0.65rem;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+.asgn-req-badge--clock {
+  background: var(--info-light);
+  color: #1e40af;
+}
+.asgn-req-badge--stamp {
+  background: var(--primary-light);
+  color: var(--primary-dark);
+}
+
+/* ── Assign / Reassign button ────────────────────────────────── */
+.asgn-btn {
+  font-size: 0.78rem;
+  padding: 0.28rem 0.7rem;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+}
+
+/* ── Empty state ─────────────────────────────────────────────── */
+.asgn-empty {
+  text-align: center;
+  padding: 5rem 2rem;
+}
+.asgn-empty-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  color: var(--border);
+}
+.asgn-empty h6 {
+  color: var(--deep-3);
+  margin-bottom: 0.4rem;
+}
+
+/* ── Success banner (Step O) ─────────────────────────────────── */
+.asgn-success-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--success-light);
+  border: 1px solid #6ee7b7;
+  border-radius: var(--radius-sm);
+  padding: 0.7rem 1rem;
+  margin-bottom: 1.25rem;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: #065f46;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.asgn-success-banner.asgn-banner--visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+.asgn-banner-close {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: #065f46;
+  cursor: pointer;
+  padding: 0;
+  font-size: 0.85rem;
+  opacity: 0.65;
+  line-height: 1;
+}
+.asgn-banner-close:hover { opacity: 1; }
+
+/* ── Assign modal ────────────────────────────────────────────── */
+.asgn-modal-dialog { max-width: 460px; }
+
+.asgn-modal-detail {
+  background: var(--border-light);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.9rem 1rem;
+}
+.asgn-modal-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.3rem;
+}
+.asgn-modal-op-no {
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--primary-dark);
+}
+.asgn-modal-op-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--deep);
+  margin-bottom: 0.55rem;
+}
+.asgn-modal-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.asgn-modal-meta-chip {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted);
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 0.18rem 0.6rem;
+}
+
+.asgn-modal-curr-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--warning-light);
+  border: 1px solid #fcd34d;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+}
+.asgn-modal-curr-label {
+  font-weight: 600;
+  color: #92400e;
+  white-space: nowrap;
+}
+.asgn-modal-curr-name {
+  font-weight: 700;
+  color: #78350f;
 }

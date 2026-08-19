@@ -118,7 +118,7 @@ const seedRouting = {
         {
           seqNo: '10', opCode: 'ME101', department: 'ME', status: 'Completed', workingOn: 'Budi Santoso',
           barcode: { exists: true, type: 'RESOURCE_SEQUENCE', value: '54989783$230$10' },
-          scope: 'Set up CNC machine and load program...', scopeFull: 'Set up CNC machine and load program. Run machining for Stage 3 impeller. Verify dimensional tolerance per drawing. Clad material to ASTM A105 and complete roughing and finishing passes.',
+          scope: 'Set up CNC machine and load program', scopeFull: 'Set up CNC machine and load program. Run machining for Stage 3 impeller. Verify dimensional tolerance per drawing. Clad material to ASTM A105 and complete roughing and finishing passes.',
           lastEdited: 'Andi Pratama',
           lastEditedBy: 'Andi Pratama',
           lastEditedAt: '2026-08-10T14:32:00.000Z',

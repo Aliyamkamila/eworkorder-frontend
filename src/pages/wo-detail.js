@@ -184,9 +184,20 @@ async function loadRouting(id) {
   }
 }
 
-function getScopeText(short, full) {
-  if (full && full.trim()) return full.trim()
-  return short || '-'
+function getScopeMarkup(seq) {
+  const shortText = (seq.scope || '').trim() || '-'
+  const fullText = (seq.scopeFull || '').trim()
+
+  if (!fullText || fullText === shortText) {
+    return `<span class="scope-title small">${shortText}</span>`
+  }
+
+  return `
+    <div class="scope-head" data-scope-short="${escapeHtmlAttr(shortText)}" data-scope-full="${escapeHtmlAttr(fullText)}">
+      <span class="scope-title small">${shortText}</span>
+      <span class="scope-chevron"><i class="bi bi-chevron-right"></i></span>
+    </div>
+  `
 }
 
 function normalizeBarcodeValue(value) {
@@ -370,25 +381,6 @@ function openRevisionDetail(rev) {
   if (!rev) return
   revisionDetailTitle.textContent = `${rev.revisionNo || 'Revision'} · OP ${rev.opNo || ''} Sequence ${rev.seqNo || ''}`
   revisionDetailBody.innerHTML = `
-    <div class="revision-meta">
-      <div class="info-field">
-        <div class="info-label">Edited by</div>
-        <div class="info-value">${rev.editedBy || '-'}</div>
-      </div>
-      <div class="info-field">
-        <div class="info-label">Date</div>
-        <div class="info-value">${rev.dateTime || '-'}</div>
-      </div>
-      <div class="info-field">
-        <div class="info-label">Operation</div>
-        <div class="info-value">OP ${rev.opNo || '-'} Sequence ${rev.seqNo || '-'}</div>
-      </div>
-      <div class="info-field">
-        <div class="info-label">Change Summary</div>
-        <div class="info-value">${rev.summary || '-'}</div>
-      </div>
-    </div>
-
     <div class="rev-compare-grid">
       <div class="rev-panel rev-prev">
         <div class="rev-panel-title"><i class="bi bi-arrow-left-circle"></i> Previous Scope</div>
@@ -398,11 +390,6 @@ function openRevisionDetail(rev) {
         <div class="rev-panel-title"><i class="bi bi-arrow-right-circle"></i> Updated Scope</div>
         <div class="rev-scope-text">${escapeHtml(rev.newScopeFull || rev.newScope || '—')}</div>
       </div>
-    </div>
-
-    <div class="rev-diff-block">
-      <div class="rev-diff-title"><i class="bi bi-diagram-3"></i> Change Comparison</div>
-      ${buildComparison(rev.prevScopeFull || rev.prevScope || '', rev.newScopeFull || rev.newScope || '')}
     </div>
   `
   if (revisionDetailModal) revisionDetailModal.show()
@@ -480,69 +467,41 @@ function handleActionClick(action, opIdx, seqIdx) {
       scope: item ? (item.scope || '') : '',
       scopeFull: item ? (item.scopeFull || '') : '',
     }
-    document.getElementById('f_opNo').value = op.opNo || ''
-    document.getElementById('f_description').value = op.description || ''
-    document.getElementById('f_seqNo').value = item ? item.seqNo : ''
-    document.getElementById('f_scope').value = item ? item.scope : ''
-    document.getElementById('f_scopeFull').value = item ? item.scopeFull : ''
-    document.getElementById('f_opCode').value = item ? (item.opCode || item.machine || '') : ''
-    document.getElementById('f_status').value = item ? normalizeStatus(item.status) : ''
-    document.getElementById('f_department').value = item ? item.department : ''
-    document.getElementById('f_workingOn').value = item ? item.workingOn : ''
-    document.getElementById('f_lastEdited').value = item ? (item.lastEditedBy || item.lastEdited || '') : ''
-    document.getElementById('f_iar').value = item ? (item.iar || '') : ''
-    document.getElementById('f_qualityOrder').value = item ? (item.qualityOrder || '') : ''
-    document.getElementById('f_qtyAccepted').value = item ? (item.qtyAccepted ?? '') : ''
-    document.getElementById('f_qtyScrapped').value = item ? (item.qtyScrapped ?? '') : ''
-    const sequenceBarcode = getResourceSequenceBarcode(item)
-    if (hasResourceSequenceBarcodeInput) hasResourceSequenceBarcodeInput.checked = sequenceBarcode.exists
-    if (resourceSequenceBarcodeInput) resourceSequenceBarcodeInput.value = sequenceBarcode.value
-    syncResourceSequenceBarcodeField()
+    const scopeEl = document.getElementById('f_scope')
+    const scopeFullEl = document.getElementById('f_scopeFull')
+    if (scopeEl) scopeEl.value = item ? item.scope : ''
+    if (scopeFullEl) scopeFullEl.value = item ? item.scopeFull : ''
     document.getElementById('panelTitle').textContent = `Edit Sequence ${item ? item.seqNo : ''}`
-    document.getElementById('panelSubtitle').textContent = 'Modify sequence details and scope'
 
     const userDept = getUserDepartment(getCurrentUser())
     const canEditScope = userDept === 'ME'
-    const scopeFields = ['f_scope', 'f_scopeFull']
-    scopeFields.forEach(id => {
-      const el = document.getElementById(id)
-      if (el) el.disabled = !canEditScope
-    })
+    if (scopeEl) scopeEl.disabled = !canEditScope
+    if (scopeFullEl) scopeFullEl.disabled = !canEditScope
+
     if (!canEditScope) {
-      document.getElementById('panelTitle').textContent = `View Sequence ${item ? item.seqNo : ''} (${userDept} - Read Only)`
       document.getElementById('panelSubtitle').textContent = 'Read-only view - limited permissions'
+    } else {
+      document.getElementById('panelSubtitle').textContent = 'Modify scope details'
     }
 
     btnSave.textContent = canEditScope ? 'Save' : 'Close'
     btnSave.style.display = 'block'
     if (!canEditScope) {
-      form.querySelectorAll('input, select, textarea').forEach(f => { f.disabled = true })
       btnSave.disabled = false
       btnSave.type = 'button'
       btnSave.onclick = () => offcanvas.hide()
     } else {
-      form.querySelectorAll('input, select, textarea').forEach(f => { f.disabled = false })
       btnSave.disabled = false
       btnSave.type = 'submit'
       btnSave.onclick = null
     }
   } else if (action === 'closingStamp') {
+    const scopeEl = document.getElementById('f_scope')
+    const scopeFullEl = document.getElementById('f_scopeFull')
+    if (scopeEl) scopeEl.value = item ? item.scope : ''
+    if (scopeFullEl) scopeFullEl.value = item ? item.scopeFull : ''
     document.getElementById('panelTitle').textContent = `Closing Stamp · Sequence ${item ? item.seqNo : ''}`
     document.getElementById('panelSubtitle').textContent = 'Formal completion certification'
-    document.getElementById('f_opNo').value = op.opNo || ''
-    document.getElementById('f_description').value = op.description || ''
-    document.getElementById('f_seqNo').value = item ? item.seqNo : ''
-    document.getElementById('f_scope').value = item ? item.scope : ''
-    document.getElementById('f_scopeFull').value = item ? item.scopeFull : ''
-    document.getElementById('f_opCode').value = item ? (item.opCode || item.machine || '') : ''
-    document.getElementById('f_status').value = item ? normalizeStatus(item.status) : ''
-    document.getElementById('f_department').value = item ? item.department : ''
-    document.getElementById('f_workingOn').value = item ? item.workingOn : ''
-    document.getElementById('f_lastEdited').value = item ? (item.lastEditedBy || item.lastEdited || '') : ''
-    const sequenceBarcode = getResourceSequenceBarcode(item)
-    if (hasResourceSequenceBarcodeInput) hasResourceSequenceBarcodeInput.checked = sequenceBarcode.exists
-    if (resourceSequenceBarcodeInput) resourceSequenceBarcodeInput.value = sequenceBarcode.value
-    syncResourceSequenceBarcodeField()
     form.querySelectorAll('input, select, textarea').forEach(f => { f.disabled = true })
     btnSave.textContent = 'Apply Closing Stamp'
     btnSave.style.display = 'block'
@@ -679,26 +638,14 @@ form.addEventListener('submit', async (e) => {
 
   if (currentAction === 'edit' && editingRow !== null) {
     const { opIdx, seqIdx } = editingRow
-    const seqNo = document.getElementById('f_seqNo').value.trim()
-    const scope = document.getElementById('f_scope').value.trim()
-    const scopeFull = document.getElementById('f_scopeFull').value.trim()
-    const opCode = document.getElementById('f_opCode').value.trim()
-    const status = document.getElementById('f_status').value
-    const department = document.getElementById('f_department').value
-    const workingOn = document.getElementById('f_workingOn').value.trim()
-    const iar = document.getElementById('f_iar').value.trim()
-    const qualityOrder = document.getElementById('f_qualityOrder').value.trim()
-    const qtyAccepted = document.getElementById('f_qtyAccepted').value.trim()
-    const qtyScrapped = document.getElementById('f_qtyScrapped').value.trim()
-    const wantsSequenceBarcode = !!hasResourceSequenceBarcodeInput?.checked
-    const typedSequenceBarcode = resourceSequenceBarcodeInput ? resourceSequenceBarcodeInput.value.trim() : ''
+    const seq = routingData[opIdx]?.sequences?.[seqIdx]
+    const seqNo = seq ? seq.seqNo : ''
+    const scope = document.getElementById('f_scope')?.value.trim() || ''
+    const scopeFull = document.getElementById('f_scopeFull')?.value.trim() || ''
 
     const missing = []
-    if (!seqNo) missing.push('Sequence No')
     if (!scope) missing.push('Scope')
     if (!scopeFull) missing.push('Scope Full')
-    if (!opCode) missing.push('Operation Code')
-    if (!department) missing.push('Department')
 
     if (missing.length) {
       showValidationError('Please fill in all required fields: ' + missing.join(', '))
@@ -708,45 +655,15 @@ form.addEventListener('submit', async (e) => {
 
     const newData = [...routingData]
     const opNo = newData[opIdx] ? newData[opIdx].opNo : ''
-    const sequenceBarcodeValue = wantsSequenceBarcode ? typedSequenceBarcode : ''
-    const seqData = { seqNo, scope, scopeFull, opCode, status: normalizeStatus(status), department, workingOn, lastEdited: getCurrentUser(), lastEditedBy: getCurrentUser(), lastEditedAt: new Date().toISOString(), iar, qualityOrder, qtyAccepted, qtyScrapped }
-    if (seqIdx >= 0) {
-      const updatedSequence = {
-        ...newData[opIdx].sequences[seqIdx],
-        ...seqData,
-      }
-      if (wantsSequenceBarcode) {
-        updatedSequence.barcode = {
-          exists: true,
-          type: 'RESOURCE_SEQUENCE',
-          value: sequenceBarcodeValue,
-        }
-      } else {
-        delete updatedSequence.barcode
-      }
-      delete updatedSequence.sequenceBarcode
-      newData[opIdx].sequences[seqIdx] = updatedSequence
-    } else if (newData[opIdx].sequences) {
-      const newSequence = { ...seqData }
-      if (wantsSequenceBarcode) {
-        newSequence.barcode = {
-          exists: true,
-          type: 'RESOURCE_SEQUENCE',
-          value: sequenceBarcodeValue,
-        }
-      }
-      newData[opIdx].sequences.push(newSequence)
-    } else {
-      const newSequence = { ...seqData }
-      if (wantsSequenceBarcode) {
-        newSequence.barcode = {
-          exists: true,
-          type: 'RESOURCE_SEQUENCE',
-          value: sequenceBarcodeValue,
-        }
-      }
-      newData[opIdx].sequences = [newSequence]
+    const updatedSequence = {
+      ...newData[opIdx].sequences[seqIdx],
+      scope,
+      scopeFull,
+      lastEdited: getCurrentUser(),
+      lastEditedBy: getCurrentUser(),
+      lastEditedAt: new Date().toISOString(),
     }
+    newData[opIdx].sequences[seqIdx] = updatedSequence
 
     await saveRouting(woId, newData)
     routingData = newData
@@ -952,8 +869,8 @@ function renderOperationList() {
         <div class="wo-grid-cell" style="grid-column: 8" data-col="8"><code class="machine-code">${op.operationCode || op.machine || '-'}</code></div>
         <div class="wo-grid-cell text-center hide-on-sm" style="grid-column: 9" data-col="9">${op.assignedEmployee || '<span class="text-muted">-</span>'}</div>
         <div class="wo-grid-cell text-center hide-on-lg" style="grid-column: 10" data-col="10">-</div>
-        <div class="wo-grid-cell hide-on-xl text-center" style="grid-column: 11" data-col="11">${op.standardHours ?? '-'}</div>
-        <div class="wo-grid-cell hide-on-xl text-center" style="grid-column: 12" data-col="12">${op.actualHours || '-'}</div>
+        <div class="wo-grid-cell hide-on-xl text-center" style="grid-column: 11" data-col="11">-</div>
+        <div class="wo-grid-cell hide-on-xl text-center" style="grid-column: 12" data-col="12">-</div>
         <div class="wo-grid-cell" style="grid-column: 13" data-col="13">
           <button class="btn btn-sm btn-outline-primary" data-view="${i}">
             <i class="bi bi-eye"></i> View
@@ -978,7 +895,7 @@ function renderOperationList() {
             <div class="wo-grid-cell ps-1 text-muted small" style="grid-column: 2" data-col="2"></div>
             <div class="wo-grid-cell text-center" style="grid-column: 3" data-col="3"><span class="seq-num">${seq.seqNo || '-'}</span></div>
             <div class="wo-grid-cell" style="grid-column: 4" data-col="4">
-              <span class="scope-title small">${getScopeText(seq.scope, seq.scopeFull)}</span>
+              ${getScopeMarkup(seq)}
             </div>
             <div class="wo-grid-cell text-center hide-on-lg" style="grid-column: 5" data-col="5">${seqBarcode.exists ? buildBarcodeMarkup(seqBarcode.value) : '<span class="text-muted">-</span>'}</div>
             <div class="wo-grid-cell" style="grid-column: 6" data-col="6">
@@ -1038,7 +955,7 @@ function renderOperationList() {
           <div class="wo-grid-cell ps-1 text-muted small" style="grid-column: 2" data-col="2"></div>
           <div class="wo-grid-cell text-center" style="grid-column: 3" data-col="3"><span class="seq-num">${seq.seqNo || '-'}</span></div>
           <div class="wo-grid-cell" style="grid-column: 4" data-col="4">
-            <span class="scope-title small">${getScopeText(seq.scope, seq.scopeFull)}</span>
+            ${getScopeMarkup(seq)}
           </div>
           <div class="wo-grid-cell text-center hide-on-lg" style="grid-column: 5" data-col="5">${seqBarcode.exists ? buildBarcodeMarkup(seqBarcode.value) : '<span class="text-muted">-</span>'}</div>
           <div class="wo-grid-cell" style="grid-column: 6" data-col="6">
@@ -1106,6 +1023,7 @@ function renderOperationList() {
       if (stampData.exists) {
         const saveEntry = (op.actionHistory || []).find(h => h.action === 'save') || (op.actionHistory || []).find(h => h.label === 'Finalized')
         openStampDetailModal(stampData, {
+          entityType: 'operation',
           opNo: op.opNo,
           name: op.name,
           department: op.department,
@@ -1135,6 +1053,23 @@ function renderOperationList() {
       openRevisionHistory(rIndex, rSeqIndex)
     })
   })
+
+  // Scope expand / collapse
+  opTableBody.querySelectorAll('.scope-head').forEach(head => {
+    head.addEventListener('click', (e) => {
+      e.stopPropagation()
+      const isOpen = head.classList.contains('open')
+      const titleEl = head.querySelector('.scope-title')
+
+      if (isOpen) {
+        head.classList.remove('open')
+        titleEl.textContent = head.dataset.scopeShort || '-'
+      } else {
+        head.classList.add('open')
+        titleEl.textContent = head.dataset.scopeFull || ''
+      }
+    })
+  })
 }
 
 function selectOperation(idx) {
@@ -1153,8 +1088,40 @@ function renderDetailPanel(op) {
   const steps = isCompleted ? renderFinalizedView(op) : renderActionArea(op)
 
   const stampData = getStampDataForEntity(op, 'operation', flow)
-  const stampPreview = buildStampIndicatorHTML(stampData, { size: 22 })
-  const stampViewBtn = stampData.exists ? `<button class="btn btn-sm btn-link p-0 ms-1" data-open-stamp-detail><i class="bi bi-eye"></i> View</button>` : ''
+
+  const stampDetailsHTML = stampData.exists
+    ? `
+      <div class="stamp-inline-card">
+        <div class="stamp-inline-visual" data-open-stamp-detail title="View stamp detail">
+          <div class="stamp-inline-badge">
+            ${buildOperationRoundStampSVG(op.opNo, stampData.user, stampData.display, 120)}
+          </div>
+        </div>
+        <div class="stamp-inline-info">
+          <div class="stamp-inline-row">
+            <span class="stamp-inline-label">Confirmed By</span>
+            <span class="stamp-inline-value">${escapeHtml(stampData.user)}</span>
+          </div>
+          <div class="stamp-inline-row">
+            <span class="stamp-inline-label">Date &amp; Time</span>
+            <span class="stamp-inline-value">${escapeHtml(stampData.display)}</span>
+          </div>
+        </div>
+        <button class="btn btn-sm btn-outline-primary stamp-inline-view-btn" data-open-stamp-detail>
+          <i class="bi bi-eye"></i> View
+        </button>
+      </div>
+    `
+    : `
+      <span class="stamp-indicator stamp-indicator--empty" title="Not Stamped">
+        <span class="stamp-indicator-stamp" style="width:22px;height:22px;">
+          <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="100" cy="100" r="92" fill="none" stroke="currentColor" stroke-width="12" opacity="0.4" />
+          </svg>
+        </span>
+        <span class="stamp-indicator-text">Not Stamped</span>
+      </span>
+    `
 
   const statusBadgeColor = getStatusBadgeColor(op.status)
   opDetailPanel.innerHTML = `
@@ -1177,10 +1144,7 @@ function renderDetailPanel(op) {
 
     <div class="op-detail-section op-detail-section--tight">
       <div class="section-label">Stamp Details</div>
-      <div class="d-flex align-items-center gap-2 flex-wrap">
-        ${stampPreview}
-        ${stampViewBtn}
-      </div>
+      ${stampDetailsHTML}
     </div>
   `
 
@@ -1190,6 +1154,7 @@ function renderDetailPanel(op) {
         e.stopPropagation()
         const saveEntry = (op.actionHistory || []).find(h => h.action === 'save') || (op.actionHistory || []).find(h => h.label === 'Finalized')
         openStampDetailModal(stampData, {
+          entityType: 'operation',
           opNo: op.opNo,
           name: op.name,
           department: op.department,
@@ -1251,11 +1216,11 @@ function renderActionArea(op) {
   const stampData = getStampDataForEntity(op, 'operation', flow)
   const stampVisual = stampData.exists ? `
     <div class="op-stamp-preview">
-      <div class="op-stamp">
-        ${buildCircularStampSVG(stampData.centerLetter, stampData.reviewerText, stampData.display, 120)}
+      <div class="op-stamp-round-wrap">
+        ${buildOperationRoundStampSVG(op.opNo, stampData.user, stampData.display, 100)}
       </div>
       <div class="op-stamp-meta">
-        <span class="op-stamp-by">Stamped by ${escapeHtml(stampData.user)}</span>
+        <span class="op-stamp-by">Confirmed by ${escapeHtml(stampData.user)}</span>
         <span class="op-stamp-at">${escapeHtml(stampData.display)}</span>
       </div>
     </div>
@@ -1302,10 +1267,14 @@ function renderFinalizedView(op) {
         <div class="op-step-dot"><i class="bi bi-check-lg"></i></div>
         <span class="op-step-label">Perform</span>
       </div>
-      <div class="op-step done">
-        <div class="op-step-dot"><i class="bi bi-check-lg"></i></div>
+      <div class="op-step ${stampData.exists ? 'done' : 'not-stamped'}">
+        <div class="op-step-dot">
+          ${stampData.exists ? '<i class="bi bi-check-lg"></i>' : '<i class="bi bi-dash-lg"></i>'}
+        </div>
         <span class="op-step-label">Stamp</span>
-        ${stampData.exists ? `<div class="op-step-meta">${escapeHtml(stampData.user)} · ${escapeHtml(stampData.display)}</div>` : ''}
+        ${stampData.exists
+          ? `<div class="op-step-meta">${escapeHtml(stampData.user)} · ${escapeHtml(stampData.display)}</div>`
+          : `<div class="op-step-meta op-step-meta--not-stamped">Not Stamped</div>`}
       </div>
       <div class="op-step done">
         <div class="op-step-dot"><i class="bi bi-check-lg"></i></div>
@@ -1419,7 +1388,7 @@ async function completeOperationSimple(op, onDone) {
         op.actionHistory.push({ action: 'save', label: 'Finalized', icon: 'bi-check-circle-fill', user: getCurrentUser(), timestamp: saveNow.toISOString(), display: saveNow.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC' }) })
         saveOperations(woId, operations)
         sessionStorage.removeItem(`op_flow_${woId}_${op.opNo}`)
-        addLog(woId, { user: getCurrentUser(), action: 'Operation Stamp', detail: `Operation stamp applied to OP ${op.opNo}` })
+        addLog(woId, { user: getCurrentUser(), action: 'Operation Completed', detail: `OP ${op.opNo} marked as completed` })
 
         const nextActive = operations.findIndex(o => o.status !== 'Completed')
         operations.forEach((o, idx) => {
@@ -1471,36 +1440,193 @@ async function saveOperation() {
 }
 
 // ====================== UNIFIED STAMP SYSTEM ======================
-function buildCircularStampSVG(centerLetter, reviewerText, date, size = 200) {
-  const reviewer = String(reviewerText || '').trim()
-  const initials = reviewer
-    .split(/\s+/)
-    .filter(Boolean)
-    .map(w => w[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase()
-  const center = (centerLetter || initials ? initials[0] : 'A').toUpperCase()
-  const arcText = initials || reviewer || 'A'
-  const shortDate = date ? date.split(',')[0] : ''
 
+// ---- OPERATION STAMP: circular rubber stamp ----
+// Used for each completed operation. Round shape, no form fields.
+function buildOperationRoundStampSVG(opNo, user, date, size = 180) {
+  const reviewer = String(user || '').trim()
+  const center = reviewer ? reviewer.split(/\s+/).filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase() : 'OP'
+  const shortDate = date ? date.split(',')[0].trim().toUpperCase() : ''
+  const opLabel = opNo ? `OP ${opNo}` : 'OPERATION'
+  const arcLabel = reviewer ? reviewer.toUpperCase() : 'COMPLETED'
+  
+  const filterId = `op-stamp-ink-${size}`
+  const topArcId = `op-stamp-arc-top-${size}`
+  const btmArcId = `op-stamp-arc-btm-${size}`
+  const cx = size / 2
+  const cy = size / 2
+  const r1 = size * 0.455
+  const r2 = size * 0.395
+  const sw1 = size * 0.032
+  const sw2 = size * 0.016
+  const arcR = size * 0.355
+  const topArcPath = `M ${cx - arcR},${cy} A ${arcR},${arcR} 0 0,1 ${cx + arcR},${cy}`
+  const btmArcPath = `M ${cx - arcR},${cy} A ${arcR},${arcR} 0 0,0 ${cx + arcR},${cy}`
+  
   return `
-    <svg viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
+    <svg viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg" style="overflow:visible;">
       <defs>
-        <filter id="stamp-rough" x="-10%" y="-10%" width="120%" height="120%">
-          <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="4" result="noise" />
-          <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.8" />
+        <filter id="${filterId}" x="-12%" y="-12%" width="124%" height="124%" color-interpolation-filters="sRGB">
+          <feTurbulence type="fractalNoise" baseFrequency="0.065" numOctaves="4" seed="3" result="noise" />
+          <feDisplacementMap in="SourceGraphic" in2="noise" scale="${size * 0.018}" xChannelSelector="R" yChannelSelector="G" result="displaced" />
+          <feComposite in="displaced" in2="SourceGraphic" operator="in" />
+        </filter>
+        <path id="${topArcId}" d="${topArcPath}" />
+        <path id="${btmArcId}" d="${btmArcPath}" />
+      </defs>
+      <g transform="rotate(-8, ${cx}, ${cy})" filter="url(#${filterId})" fill="#0a0a0a" stroke="#0a0a0a">
+        <circle cx="${cx}" cy="${cy}" r="${r1}" fill="none" stroke="#0a0a0a" stroke-width="${sw1}" opacity="0.92" />
+        <circle cx="${cx}" cy="${cy}" r="${r2}" fill="none" stroke="#0a0a0a" stroke-width="${sw2}" opacity="0.85" />
+        <text font-size="${size * 0.072}" font-weight="700" font-family="'Courier New', Courier, monospace" letter-spacing="${size * 0.012}" fill="#0a0a0a" opacity="0.90">
+          <textPath href="#${topArcId}" startOffset="50%" text-anchor="middle">${escapeHtml(arcLabel)}</textPath>
+        </text>
+        <text x="${cx}" y="${cy + size * 0.095}" text-anchor="middle" font-size="${size * 0.34}" font-weight="900" font-family="'Times New Roman', Georgia, serif" fill="#0a0a0a" opacity="0.93" dominant-baseline="middle">${escapeHtml(center)}</text>
+        <line x1="${cx - size * 0.22}" y1="${cy + size * 0.23}" x2="${cx + size * 0.22}" y2="${cy + size * 0.23}" stroke="#0a0a0a" stroke-width="${size * 0.010}" opacity="0.70" />
+        ${shortDate ? `
+        <text font-size="${size * 0.060}" font-weight="700" font-family="'Courier New', Courier, monospace" letter-spacing="${size * 0.008}" fill="#0a0a0a" opacity="0.88">
+          <textPath href="#${btmArcId}" startOffset="50%" text-anchor="middle">${escapeHtml(shortDate)}</textPath>
+        </text>
+        ` : ''}
+      </g>
+    </svg>
+  `
+}
+
+// ---- CLOSING STAMP: rectangular/square rubber stamp ----
+// Used ONLY for the Final/Closing Stamp after all operations are complete.
+function buildClosingRectStampSVG(stamp, size = 240) {
+  const irnNo = String(stamp.irnNo || '').trim()
+  const qtyOrdered = String(stamp.qtyOrdered != null ? stamp.qtyOrdered : '-')
+  const qtyScrapped = String(stamp.qtyScrapped != null ? stamp.qtyScrapped : '-')
+  const qtyAccepted = String(stamp.qtyAccepted != null ? stamp.qtyAccepted : '-')
+  const reviewedBy = String(stamp.reviewedBy || '').trim().toUpperCase()
+  const reviewedDate = stamp.reviewedDateDisplay ? stamp.reviewedDateDisplay.split(',')[0].trim().toUpperCase() : (stamp.reviewedDate ? new Date(stamp.reviewedDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase() : '-')
+  
+  const filterId = `closing-rect-ink-${size}`
+  const w = size
+  const h = size * 0.75
+  const cx = w / 2
+  const cy = h / 2
+  
+  return `
+    <svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" style="overflow:visible;">
+      <defs>
+        <filter id="${filterId}" x="-6%" y="-6%" width="112%" height="112%" color-interpolation-filters="sRGB">
+          <feTurbulence type="fractalNoise" baseFrequency="0.055" numOctaves="3" seed="7" result="noise"/>
+          <feDisplacementMap in="SourceGraphic" in2="noise" scale="${size * 0.012}" xChannelSelector="R" yChannelSelector="G" result="d"/>
+          <feComposite in="d" in2="SourceGraphic" operator="in"/>
         </filter>
       </defs>
-      <g class="stamp-ink" filter="url(#stamp-rough)">
-        <circle cx="${size/2}" cy="${size/2}" r="${size * 0.46}" fill="none" stroke="currentColor" stroke-width="${size * 0.025}" opacity="0.9" />
-        <circle cx="${size/2}" cy="${size/2}" r="${size * 0.40}" fill="none" stroke="currentColor" stroke-width="${size * 0.0125}" opacity="0.75" />
-        <path id="stamp-top-arc-${size}" d="M ${size * 0.19},${size/2} a ${size * 0.31},${size * 0.31} 0 0,1 ${size * 0.62},0" fill="none" />
-        <text font-size="${size * 0.0525}" font-weight="700" letter-spacing="${size * 0.0175}" fill="currentColor" opacity="0.9">
-          <textPath href="#stamp-top-arc-${size}" startOffset="12.5%">${escapeHtml(arcText.toUpperCase())}</textPath>
+      <g transform="rotate(-3, ${cx}, ${cy})" filter="url(#${filterId})" fill="#0a0a0a" stroke="none">
+        <rect x="4" y="4" width="${w - 8}" height="${h - 8}" rx="6" ry="6" fill="none" stroke="#0a0a0a" stroke-width="${size * 0.025}" opacity="0.90"/>
+        <rect x="10" y="10" width="${w - 20}" height="${h - 20}" rx="3" ry="3" fill="none" stroke="#0a0a0a" stroke-width="${size * 0.012}" opacity="0.70"/>
+        
+        <text x="${cx}" y="${cy - h * 0.32}" text-anchor="middle" font-size="${size * 0.065}" font-weight="900" font-family="'Courier New', Courier, monospace" letter-spacing="4" fill="#0a0a0a" opacity="0.95">FINAL / CLOSING STAMP</text>
+        <line x1="20" y1="${cy - h * 0.24}" x2="${w - 20}" y2="${cy - h * 0.24}" stroke="#0a0a0a" stroke-width="${size * 0.010}" opacity="0.60"/>
+        
+        <text x="24" y="${cy - h * 0.12}" text-anchor="start" font-size="${size * 0.042}" font-weight="700" font-family="'Courier New', Courier, monospace" fill="#0a0a0a" opacity="0.88">IRN No.: ${escapeHtml(irnNo)}</text>
+        
+        <text x="24" y="${cy + h * 0.02}" text-anchor="start" font-size="${size * 0.042}" font-weight="700" font-family="'Courier New', Courier, monospace" fill="#0a0a0a" opacity="0.88">Qty Ordered: ${escapeHtml(qtyOrdered)}</text>
+        
+        <text x="24" y="${cy + h * 0.14}" text-anchor="start" font-size="${size * 0.042}" font-weight="700" font-family="'Courier New', Courier, monospace" fill="#0a0a0a" opacity="0.88">Qty Scrapped / RTV: ${escapeHtml(qtyScrapped)}</text>
+        
+        <text x="24" y="${cy + h * 0.26}" text-anchor="start" font-size="${size * 0.042}" font-weight="700" font-family="'Courier New', Courier, monospace" fill="#0a0a0a" opacity="0.88">Qty Accepted: ${escapeHtml(qtyAccepted)}</text>
+        
+        <line x1="20" y1="${cy + h * 0.34}" x2="${w - 20}" y2="${cy + h * 0.34}" stroke="#0a0a0a" stroke-width="${size * 0.010}" opacity="0.60"/>
+        
+        <text x="${cx}" y="${cy + h * 0.46}" text-anchor="middle" font-size="${size * 0.045}" font-weight="700" font-family="'Courier New', Courier, monospace" letter-spacing="1" fill="#0a0a0a" opacity="0.90">${escapeHtml(reviewedBy)}</text>
+        <text x="${cx}" y="${cy + h * 0.58}" text-anchor="middle" font-size="${size * 0.040}" font-weight="600" font-family="'Courier New', Courier, monospace" fill="#0a0a0a" opacity="0.82">${escapeHtml(reviewedDate)}</text>
+      </g>
+    </svg>
+  `
+}
+
+// ---- CLOSING STAMP: full circular rubber stamp ----
+// Used ONLY for the Final/Closing Stamp after all operations are complete.
+function buildCircularStampSVG(centerLetter, reviewerText, date, size = 200) {
+  const reviewer = String(reviewerText || '').trim()
+  // Full name for the arc label — use full name up to ~24 chars, spaced with small gaps
+  const arcLabel = reviewer.toUpperCase() || 'INSPECTOR'
+  // Large center initial
+  const center = (centerLetter || (reviewer ? reviewer[0] : 'A')).toUpperCase()
+  // Date line: e.g. "10 Aug 2026"
+  const shortDate = date ? date.split(',')[0].trim().toUpperCase() : ''
+
+  // Unique filter id per size so multiple stamps on the same page don't clash
+  const filterId = `stamp-ink-${size}`
+  const topArcId = `stamp-arc-top-${size}`
+  const btmArcId = `stamp-arc-btm-${size}`
+
+  const cx = size / 2
+  const cy = size / 2
+  // Outer ring radius, inner ring radius
+  const r1 = size * 0.455   // outer
+  const r2 = size * 0.395   // inner
+  const sw1 = size * 0.032  // outer stroke width — thick, like a rubber die
+  const sw2 = size * 0.016  // inner stroke width
+
+  // Top arc: reviewer name curves along top half (just inside inner ring)
+  const arcR = size * 0.355
+  const topArcPath = `M ${cx - arcR},${cy} A ${arcR},${arcR} 0 0,1 ${cx + arcR},${cy}`
+  // Bottom arc: date curves along bottom half
+  const btmArcPath = `M ${cx - arcR},${cy} A ${arcR},${arcR} 0 0,0 ${cx + arcR},${cy}`
+
+  return `
+    <svg viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg" style="overflow:visible;">
+      <defs>
+        <!-- Turbulence: simulates uneven ink absorption on paper fibers -->
+        <filter id="${filterId}" x="-12%" y="-12%" width="124%" height="124%" color-interpolation-filters="sRGB">
+          <feTurbulence type="fractalNoise" baseFrequency="0.065" numOctaves="4" seed="3" result="noise" />
+          <feDisplacementMap in="SourceGraphic" in2="noise" scale="${size * 0.018}" xChannelSelector="R" yChannelSelector="G" result="displaced" />
+          <feComposite in="displaced" in2="SourceGraphic" operator="in" />
+        </filter>
+        <path id="${topArcId}" d="${topArcPath}" />
+        <path id="${btmArcId}" d="${btmArcPath}" />
+      </defs>
+
+      <!-- Slight rotation to look hand-placed, like a physical stamp -->
+      <g transform="rotate(-8, ${cx}, ${cy})" filter="url(#${filterId})" fill="#0a0a0a" stroke="#0a0a0a">
+
+        <!-- Outer ring — thick, like the raised die edge -->
+        <circle cx="${cx}" cy="${cy}" r="${r1}" fill="none"
+          stroke="#0a0a0a" stroke-width="${sw1}" opacity="0.92" />
+
+        <!-- Inner ring — thinner, secondary border -->
+        <circle cx="${cx}" cy="${cy}" r="${r2}" fill="none"
+          stroke="#0a0a0a" stroke-width="${sw2}" opacity="0.85" />
+
+        <!-- Reviewer name arced along the top inside the rings -->
+        <text font-size="${size * 0.068}" font-weight="700"
+              font-family="'Courier New', Courier, monospace"
+              letter-spacing="${size * 0.012}"
+              fill="#0a0a0a" opacity="0.90">
+          <textPath href="#${topArcId}" startOffset="50%" text-anchor="middle">${escapeHtml(arcLabel)}</textPath>
         </text>
-        <text x="${size/2}" y="${size * 0.54}" text-anchor="middle" font-size="${size * 0.26}" font-weight="900" font-family="Georgia, 'Times New Roman', serif" fill="currentColor" opacity="0.95">${escapeHtml(center)}</text>
-        <text x="${size/2}" y="${size * 0.775}" text-anchor="middle" font-size="${size * 0.045}" font-weight="700" letter-spacing="${size * 0.0075}" fill="currentColor" opacity="0.8">${escapeHtml(shortDate)}</text>
+
+        <!-- Large center initial — the dominant visual element -->
+        <text x="${cx}" y="${cy + size * 0.095}"
+              text-anchor="middle"
+              font-size="${size * 0.34}"
+              font-weight="900"
+              font-family="'Times New Roman', Georgia, serif"
+              fill="#0a0a0a" opacity="0.93"
+              dominant-baseline="middle">${escapeHtml(center)}</text>
+
+        <!-- Horizontal rule lines flanking the date — give it a "stamp band" look -->
+        <line x1="${cx - size * 0.22}" y1="${cy + size * 0.23}"
+              x2="${cx + size * 0.22}" y2="${cy + size * 0.23}"
+              stroke="#0a0a0a" stroke-width="${size * 0.010}" opacity="0.70" />
+
+        <!-- Date arced along the bottom -->
+        ${shortDate ? `
+        <text font-size="${size * 0.057}" font-weight="700"
+              font-family="'Courier New', Courier, monospace"
+              letter-spacing="${size * 0.008}"
+              fill="#0a0a0a" opacity="0.88">
+          <textPath href="#${btmArcId}" startOffset="50%" text-anchor="middle">${escapeHtml(shortDate)}</textPath>
+        </text>
+        ` : ''}
+
       </g>
     </svg>
   `
@@ -1572,11 +1698,10 @@ function getStampDataForEntity(entity, entityType = 'operation', flow = {}) {
 }
 
 function buildStampIndicatorHTML(stampData, opts = {}) {
-  const size = opts.size || 22
   if (!stampData.exists) {
     return `
       <span class="stamp-indicator stamp-indicator--empty" title="Not Stamped">
-        <span class="stamp-indicator-stamp" style="width:${size}px;height:${size}px;">
+        <span class="stamp-indicator-stamp" style="width:22px;height:22px;">
           <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
             <circle cx="100" cy="100" r="92" fill="none" stroke="currentColor" stroke-width="12" opacity="0.4" />
           </svg>
@@ -1585,17 +1710,20 @@ function buildStampIndicatorHTML(stampData, opts = {}) {
       </span>
     `
   }
+  // Operation stamp indicator: show a compact circular icon + date text
   return `
-    <span class="stamp-indicator" title="Stamped by ${escapeHtml(stampData.user)} at ${escapeHtml(stampData.display)}">
-      <span class="stamp-indicator-stamp" style="width:${size}px;height:${size}px;">
-        ${buildCircularStampSVG(stampData.centerLetter, stampData.reviewerText, stampData.display, 120)}
-      </span>
+    <span class="stamp-indicator" title="Confirmed by ${escapeHtml(stampData.user)} at ${escapeHtml(stampData.display)}">
+      <span class="stamp-indicator-stamp"><svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><circle cx="100" cy="100" r="88" fill="none" stroke="currentColor" stroke-width="14" opacity="0.85" /></svg></span>
       <span class="stamp-indicator-meta">${escapeHtml(stampData.display)}</span>
     </span>
   `
 }
 
 function buildStampDetailModalContent(stampData, entityInfo = {}) {
+  // entityType: 'operation' (op badge) | 'closing' (circular closing stamp)
+  const entityType = entityInfo.entityType || 'operation'
+  const isClosing = entityType === 'closing'
+
   if (!stampData || !stampData.exists) {
     return `
       <div class="stamp-detail-card">
@@ -1614,22 +1742,33 @@ function buildStampDetailModalContent(stampData, entityInfo = {}) {
   const finalizedBy = entityInfo.finalized ? entityInfo.finalized.user : null
   const finalizedAt = entityInfo.finalized ? entityInfo.finalized.display : null
 
+  // Stamp visual — round for operation, rectangular for closing
+  const stampVisual = isClosing
+    ? `<div class="stamp-detail-stamp stamp-detail-stamp--rect">
+        ${buildClosingRectStampSVG({ irnNo: entityInfo.irnNo, qtyOrdered: entityInfo.qtyOrdered, qtyScrapped: entityInfo.qtyScrapped, qtyAccepted: entityInfo.qtyAccepted, reviewedBy: stampData.reviewerText, reviewedDate: stampData.display }, 220)}
+       </div>`
+    : `<div class="stamp-detail-stamp stamp-detail-stamp--round">
+        ${buildOperationRoundStampSVG(entityInfo.opNo, stampData.user, stampData.display, 160)}
+       </div>`
+
+  const statusLabel = isClosing ? 'CLOSING STAMP APPLIED' : 'OPERATION CONFIRMED'
+  const statusIcon = isClosing ? 'bi-patch-check-fill' : 'bi-check-square-fill'
+  const stampedByLabel = isClosing ? 'Reviewed By' : 'Confirmed By'
+
   return `
     <div class="stamp-detail-card">
-      <div class="stamp-detail-stamp">
-        ${buildCircularStampSVG(stampData.centerLetter, stampData.reviewerText, stampData.display, 200)}
-      </div>
+      ${stampVisual}
       <div class="stamp-detail-status">
-        <i class="bi bi-patch-check-fill"></i> STAMPED
+        <i class="bi ${statusIcon}"></i> ${statusLabel}
         ${isFinalized ? '<span style="margin:0 0.35rem;color:var(--border);">|</span><span style="color:#15803d;"><i class="bi bi-check-circle-fill"></i> FINALIZED</span>' : ''}
       </div>
       <div class="stamp-detail-meta">
         <div class="stamp-detail-row">
-          <span class="stamp-detail-label">Stamped By</span>
+          <span class="stamp-detail-label">${stampedByLabel}</span>
           <span class="stamp-detail-value">${escapeHtml(stampData.user)}</span>
         </div>
         <div class="stamp-detail-row">
-          <span class="stamp-detail-label">Date & Time</span>
+          <span class="stamp-detail-label">Date &amp; Time</span>
           <span class="stamp-detail-value">${escapeHtml(stampData.display)}</span>
         </div>
         ${entityInfo.opNo ? `
@@ -1648,6 +1787,30 @@ function buildStampDetailModalContent(stampData, entityInfo = {}) {
           <span class="stamp-detail-label">Department</span>
           <span class="stamp-detail-value">${escapeHtml(entityInfo.department || '-')}</span>
         </div>
+        ${isClosing && entityInfo.irnNo ? `
+        <div class="stamp-detail-row">
+          <span class="stamp-detail-label">IRN No.</span>
+          <span class="stamp-detail-value">${escapeHtml(entityInfo.irnNo)}</span>
+        </div>
+        ` : ''}
+        ${isClosing && entityInfo.qtyOrdered != null ? `
+        <div class="stamp-detail-row">
+          <span class="stamp-detail-label">Qty Ordered</span>
+          <span class="stamp-detail-value">${escapeHtml(String(entityInfo.qtyOrdered))}</span>
+        </div>
+        ` : ''}
+        ${isClosing && entityInfo.qtyAccepted != null ? `
+        <div class="stamp-detail-row">
+          <span class="stamp-detail-label">Qty Accepted</span>
+          <span class="stamp-detail-value">${escapeHtml(String(entityInfo.qtyAccepted))}</span>
+        </div>
+        ` : ''}
+        ${isClosing && entityInfo.qtyScrapped != null ? `
+        <div class="stamp-detail-row">
+          <span class="stamp-detail-label">Qty Scrapped</span>
+          <span class="stamp-detail-value">${escapeHtml(String(entityInfo.qtyScrapped))}</span>
+        </div>
+        ` : ''}
         ${isFinalized && finalizedBy ? `
         <div class="stamp-detail-row stamp-detail-finalized">
           <span class="stamp-detail-label">Finalized By</span>
@@ -1656,7 +1819,7 @@ function buildStampDetailModalContent(stampData, entityInfo = {}) {
         ` : ''}
         ${isFinalized && finalizedAt ? `
         <div class="stamp-detail-row stamp-detail-finalized">
-          <span class="stamp-detail-label">Finalized Date & Time</span>
+          <span class="stamp-detail-label">Finalized Date &amp; Time</span>
           <span class="stamp-detail-value">${escapeHtml(finalizedAt)}</span>
         </div>
         ` : ''}
@@ -1689,8 +1852,29 @@ function showInspectionStampModal(op) {
   formEl?.classList.remove('was-validated')
   formEl?.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'))
 
+  updateClosingStampPreview()
+
   if (inspectionStampModal) inspectionStampModal.show()
 }
+
+function updateClosingStampPreview() {
+  const previewEl = document.getElementById('closingStampPreview')
+  if (!previewEl) return
+  const stamp = {
+    irnNo: fIrnNo ? fIrnNo.value.trim() : '',
+    qtyOrdered: fQtyOrdered ? fQtyOrdered.value : '-',
+    qtyScrapped: fQtyScrapped ? fQtyScrapped.value : '-',
+    qtyAccepted: fQtyAccepted ? fQtyAccepted.value : '-',
+    reviewedBy: fReviewedBy ? fReviewedBy.value : '',
+    reviewedDate: fReviewedDate ? fReviewedDate.value : '-',
+  }
+  previewEl.innerHTML = `<div class="closing-rect-stamp">${buildClosingRectStampSVG(stamp, 200)}</div>`
+}
+
+[fIrnNo, fQtyScrapped, fQtyAccepted, fQtyOrdered, fReviewedBy, fReviewedDate].forEach(el => {
+  el?.addEventListener('input', updateClosingStampPreview)
+  el?.addEventListener('change', updateClosingStampPreview)
+})
 
 function buildInspectionStampHTML(stamp) {
   if (!stamp) return ''
@@ -1700,23 +1884,11 @@ function buildInspectionStampHTML(stamp) {
     timeZone: 'UTC'
   })
 
-  const reviewer = String(stamp.reviewedBy || '').trim()
-  const initials = reviewer
-    .split(/\s+/)
-    .filter(Boolean)
-    .map(w => w[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase()
-  const centerLetter = initials ? initials[0] : 'A'
-  const reviewerText = initials || reviewer || 'A'
-
-  const shortDate = reviewedDate ? reviewedDate.split(',')[0] : ''
-
+  const stampWithDate = { ...stamp, reviewedDateDisplay: reviewedDate }
   return `
-    <div class="inspection-stamp-area">
-      <div class="inspection-stamp">
-        ${buildCircularStampSVG(centerLetter, reviewerText, shortDate, 200)}
+    <div class="closing-rect-stamp-area">
+      <div class="closing-rect-stamp">
+        ${buildClosingRectStampSVG(stampWithDate, 220)}
       </div>
     </div>
   `
@@ -1729,21 +1901,21 @@ async function applyInspectionStamp() {
   formEl.classList.add('was-validated')
 
   const irnNo = fIrnNo.value.trim()
-  const qtyScrapped = parseInt(fQtyScrapped.value) || 0
-  const qtyAccepted = parseInt(fQtyAccepted.value) || 0
-  const qtyOrdered = parseInt(fQtyOrdered.value) || 0
+  const qtyScrapped = parseInt(fQtyScrapped.value, 10)
+  const qtyAccepted = parseInt(fQtyAccepted.value, 10)
+  const qtyOrdered = parseInt(fQtyOrdered.value, 10)
 
   if (!irnNo) {
     showToast('Validation Error', 'IRN No. is required.', 'error')
     fIrnNo.focus()
     return
   }
-  if (isNaN(qtyScrapped) || qtyScrapped < 0) {
-    showToast('Validation Error', 'Qty Scrapped / RTV must be a valid number.', 'error')
+  if (Number.isNaN(qtyScrapped) || qtyScrapped < 0) {
+    showToast('Validation Error', 'Qty Scrapped must be a valid number.', 'error')
     fQtyScrapped.focus()
     return
   }
-  if (isNaN(qtyAccepted) || qtyAccepted < 0) {
+  if (Number.isNaN(qtyAccepted) || qtyAccepted < 0) {
     showToast('Validation Error', 'Qty Accepted Completed must be a valid number.', 'error')
     fQtyAccepted.focus()
     return
@@ -1761,6 +1933,8 @@ async function applyInspectionStamp() {
     reviewedDate: new Date().toISOString(),
     reviewedDateDisplay: fReviewedDate.value,
   }
+
+  saveOperations(woId, operations)
 
   if (inspectionStampModal) inspectionStampModal.hide()
 
@@ -1859,4 +2033,3 @@ window.addEventListener('error', (e) => {
   console.error('Global error:', e)
 })
 
-export { loadWorkOrder, loadRouting, renderOperationList }

@@ -24,7 +24,7 @@
         <div class="nav-section">Main</div>
         <a href="/dashboard.html"><i class="bi bi-grid-1x2"></i><span class="nav-label">Dashboard</span></a>
         <a href="#" class="active"><i class="bi bi-list-task"></i><span class="nav-label">Work Orders</span></a>
-        <a href="#"><i class="bi bi-people"></i><span class="nav-label">Assignments</span></a>
+        <a href="/assignments.html"><i class="bi bi-people"></i><span class="nav-label">Assignments</span></a>
         <div class="nav-section">System</div>
         <a href="#"><i class="bi bi-gear"></i><span class="nav-label">Settings</span></a>
       </nav>
@@ -92,9 +92,8 @@
             </div>
           </div>
 
-            <div class="row g-4 align-items-start">
-              <div class="col-12">
-                <div class="table-wrap wo-table-wrap">
+            <div class="op-list-layout">
+              <div class="table-wrap wo-table-wrap">
                  <div class="wo-grid">
                     <div class="wo-grid-row wo-grid-header text-nowrap">
                       <div class="wo-grid-cell text-center" style="grid-column: 1" data-col="1"></div>
@@ -114,17 +113,16 @@
                     <div id="opTableBody"></div>
                   </div>
                 </div>
-              </div>
-            </div>
 
-            <div class="op-detail-panel" id="opDetailPanel">
-              <div class="op-detail-empty">
-                <div class="empty-state-icon">
-                  <i class="bi bi-gear-wide-connected"></i>
+              <div class="op-detail-panel" id="opDetailPanel">
+                <div class="op-detail-empty">
+                  <div class="empty-state-icon">
+                    <i class="bi bi-gear-wide-connected"></i>
+                  </div>
+                  <h6 class="fw-semibold text-dark mb-2">No Operation Selected</h6>
+                  <p class="mb-0 small">Select an operation from the list to view details and workflow actions</p>
+                  <small class="text-muted d-block mt-2">Click on any operation row or the View button</small>
                 </div>
-                <h6 class="fw-semibold text-dark mb-2">No Operation Selected</h6>
-                <p class="mb-0 small">Select an operation from the list to view details and workflow actions</p>
-                <small class="text-muted d-block mt-2">Click on any operation row or the View button</small>
               </div>
             </div>
           </div>
@@ -166,38 +164,6 @@
       <form id="routingForm" novalidate class="p-4">
         <div class="form-section">
           <div class="form-section-title">
-            <i class="bi bi-info-circle"></i> Basic Information
-          </div>
-          <div class="row g-3">
-            <div class="col-12">
-              <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Operation Number <span class="text-danger">*</span></label>
-              <input type="text" class="form-control form-control-sm" id="f_opNo" required>
-              <div class="invalid-feedback small">Operation Number wajib diisi.</div>
-            </div>
-            <div class="col-12">
-              <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Description <span class="text-danger">*</span></label>
-              <input type="text" class="form-control form-control-sm" id="f_description" required>
-              <div class="invalid-feedback small">Description wajib diisi.</div>
-            </div>
-            <div class="col-6">
-              <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Sequence No <span class="text-danger">*</span></label>
-              <input type="text" class="form-control form-control-sm" id="f_seqNo" required readonly>
-              <div class="form-text small">Controlled by routing</div>
-            </div>
-            <div class="col-6">
-              <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Status <span class="text-danger">*</span></label>
-               <select class="form-select form-select-sm" id="f_status" required>
-                 <option value="">-- Select --</option>
-                 <option value="Not Started">Not Started</option>
-                 <option value="In Progress">In Progress</option>
-                 <option value="Completed">Completed</option>
-               </select>
-            </div>
-          </div>
-        </div>
-
-        <div class="form-section mt-3">
-          <div class="form-section-title">
             <i class="bi bi-diagram-3"></i> Scope &amp; Work Center
           </div>
           <div class="row g-3">
@@ -209,38 +175,6 @@
               <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Scope Full <span class="text-danger">*</span></label>
               <textarea class="form-control form-control-sm" id="f_scopeFull" rows="3" required></textarea>
             </div>
-            <div class="col-6">
-              <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Operation Code <span class="text-danger">*</span></label>
-              <input type="text" class="form-control form-control-sm" id="f_opCode" required placeholder="e.g. ME101">
-            </div>
-            <div class="col-6">
-              <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Department <span class="text-danger">*</span></label>
-              <select class="form-select form-select-sm" id="f_department" required>
-                <option value="">-- Select --</option>
-                <option value="ME">ME</option>
-                <option value="WE">WE</option>
-                <option value="QC">QC</option>
-                <option value="AS">AS</option>
-                <option value="CA">CA</option>
-                <option value="FN">FN</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <div class="form-section mt-3">
-          <div class="form-section-title">
-            <i class="bi bi-people"></i> Assignment &amp; Tracking
-          </div>
-          <div class="row g-3">
-            <div class="col-6">
-              <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Working On</label>
-              <input type="text" class="form-control form-control-sm" id="f_workingOn">
-            </div>
-            <div class="col-6">
-              <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Last Edited By</label>
-              <input type="text" class="form-control form-control-sm" id="f_lastEdited">
-            </div>
           </div>
         </div>
 
@@ -249,33 +183,33 @@
             <i class="bi bi-sliders"></i> Advanced Options
           </div>
           <div class="row g-3">
-            <div class="col-12">
-              <label class="form-label fw-semibold small text-uppercase text-muted ls-1">IAR</label>
-              <input type="text" class="form-control form-control-sm" id="f_iar" placeholder="IAR Number (optional)">
-            </div>
-            <div class="col-12">
-              <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Quality Order</label>
-              <input type="text" class="form-control form-control-sm" id="f_qualityOrder" placeholder="Quality Order (optional)">
-            </div>
-            <div class="col-6">
-              <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Quantity Accepted</label>
-              <input type="number" class="form-control form-control-sm" id="f_qtyAccepted" placeholder="0">
-            </div>
-            <div class="col-6">
-              <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Quantity Scrapped</label>
-              <input type="number" class="form-control form-control-sm" id="f_qtyScrapped" placeholder="0">
-            </div>
-            <div class="col-12">
-              <div class="form-check form-switch">
-                <input class="form-check-input" type="checkbox" id="f_hasSequenceBarcode">
-                <label class="form-check-label small" for="f_hasSequenceBarcode">Resource Sequence has barcode</label>
+             <div class="col-12">
+               <label class="form-label fw-semibold small text-uppercase text-muted ls-1">IAR</label>
+               <input type="text" class="form-control form-control-sm" id="f_iar" placeholder="IAR Number (optional)" readonly>
+             </div>
+             <div class="col-12">
+               <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Quality Order</label>
+               <input type="text" class="form-control form-control-sm" id="f_qualityOrder" placeholder="Quality Order (optional)" readonly>
+             </div>
+              <div class="col-6">
+                <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Quantity Accepted</label>
+                <input type="number" class="form-control form-control-sm" id="routing_qtyAccepted" placeholder="0" readonly>
               </div>
-              <div class="form-text small">Enter the actual barcode value from the source data.</div>
-            </div>
-            <div class="col-12 d-none" id="f_sequenceBarcodeWrap">
-              <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Resource Sequence Barcode</label>
-              <input type="text" class="form-control form-control-sm" id="f_sequenceBarcode" placeholder="e.g. 54989783$5300$30">
-            </div>
+              <div class="col-6">
+                <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Quantity Scrapped</label>
+                <input type="number" class="form-control form-control-sm" id="routing_qtyScrapped" placeholder="0" readonly>
+              </div>
+             <div class="col-12">
+               <div class="form-check form-switch">
+                 <input class="form-check-input" type="checkbox" id="f_hasSequenceBarcode" disabled>
+                 <label class="form-check-label small" for="f_hasSequenceBarcode">Resource Sequence has barcode</label>
+               </div>
+               <div class="form-text small">Enter the actual barcode value from the source data.</div>
+             </div>
+             <div class="col-12 d-none" id="f_sequenceBarcodeWrap">
+               <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Resource Sequence Barcode</label>
+               <input type="text" class="form-control form-control-sm" id="f_sequenceBarcode" placeholder="e.g. 54989783$5300$30" readonly>
+             </div>
           </div>
         </div>
 
@@ -394,32 +328,35 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
+          <div class="closing-rect-stamp-area mb-3" id="closingStampPreview">
+            <div class="closing-rect-stamp"></div>
+          </div>
           <form id="inspectionStampForm" novalidate>
             <div class="row g-2">
-              <div class="col-3">
+              <div>
                 <label class="form-label fw-semibold small text-uppercase text-muted ls-1">IRN No. <span class="text-danger">*</span></label>
                 <input type="text" class="form-control form-control-sm" id="f_irnNo" required placeholder="Enter IRN Number">
                 <div class="invalid-feedback small">IRN No. wajib diisi.</div>
               </div>
-              <div class="col-3">
+              <div>
                 <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Qty Ordered</label>
                 <input type="number" class="form-control form-control-sm" id="f_qtyOrdered" readonly>
               </div>
-              <div class="col-3">
-                <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Qty Scrapped / RTV <span class="text-danger">*</span></label>
+              <div>
+                <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Qty Scrapped <span class="text-danger">*</span></label>
                 <input type="number" class="form-control form-control-sm" id="f_qtyScrapped" required min="0" placeholder="0">
                 <div class="invalid-feedback small">Qty Scrapped wajib diisi.</div>
               </div>
-              <div class="col-3">
+              <div>
                 <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Qty Accepted Completed <span class="text-danger">*</span></label>
                 <input type="number" class="form-control form-control-sm" id="f_qtyAccepted" required min="0" placeholder="0">
                 <div class="invalid-feedback small">Qty Accepted Completed wajib diisi.</div>
               </div>
-              <div class="col-6">
+              <div>
                 <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Inspected / Reviewed By</label>
                 <input type="text" class="form-control form-control-sm" id="f_reviewedBy" readonly>
               </div>
-              <div class="col-6">
+              <div>
                 <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Inspected / Reviewed Date</label>
                 <input type="text" class="form-control form-control-sm" id="f_reviewedDate" readonly>
               </div>
