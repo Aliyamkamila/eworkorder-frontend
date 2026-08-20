@@ -1,5 +1,5 @@
 import '../main.js'
-import { seedIfEmpty, getWorkOrders, getRouting, getLastOperation, getWorkingOn, isAuthed, setSelectedWO } from '../data/store.js'
+import { seedIfEmpty, getWorkOrders, getRouting, getLastOperation, getOperations, isAuthed, setSelectedWO } from '../data/store.js'
 
 if (!isAuthed()) window.location.href = '/index.html'
 seedIfEmpty()
@@ -11,14 +11,24 @@ const statusClass = {
 }
 
 function renderStats(list) {
+  const totalStdHrs = list.reduce((sum, w) => {
+    const ops = getOperations(w.id)
+    return sum + ops.reduce((s, op) => s + (parseFloat(op.standardHours) || 0), 0)
+  }, 0)
+  const totalActHrs = list.reduce((sum, w) => {
+    const ops = getOperations(w.id)
+    return sum + ops.reduce((s, op) => s + (parseFloat(op.actualHours) || 0), 0)
+  }, 0)
   const stats = [
-    { label: 'Total Active WO', value: 1, icon: 'bi-clipboard-data', color: 'text-primary' },
+    { label: 'Total Active WO', value: list.filter(w => w.status === 'In Progress' || w.status === 'Not Started').length, icon: 'bi-clipboard-data', color: 'text-primary' },
     { label: 'Completed', value: list.filter(w => w.status === 'Completed').length, icon: 'bi-check-circle', color: 'text-success' },
     { label: 'Not Started', value: list.filter(w => w.status === 'Not Started').length, icon: 'bi-hourglass-split', color: 'text-warning' },
     { label: 'In Progress', value: list.filter(w => w.status === 'In Progress').length, icon: 'bi-gear', color: 'text-primary' },
+    { label: 'Std Hrs', value: totalStdHrs.toFixed(2), icon: 'bi-clock', color: 'text-info' },
+    { label: 'Act Hrs', value: totalActHrs.toFixed(2), icon: 'bi-stopwatch', color: 'text-warning' },
   ]
   document.getElementById('statCards').innerHTML = stats.map(s => `
-    <div class="col-xl col-md-4 col-6">
+    <div class="col-xl-2 col-md-4 col-6">
       <div class="stat-card">
         <div class="stat-icon ${s.color}"><i class="bi ${s.icon}"></i></div>
         <div class="stat-value">${s.value}</div>
@@ -30,20 +40,23 @@ function renderStats(list) {
 
 function renderTable(list) {
   document.getElementById('woTableBody').innerHTML = list.map(w => {
-const routing = getRouting(w.id)
+    const routing = getRouting(w.id)
     const lastOp = getLastOperation(routing)
-    const workingOn = getWorkingOn(routing)
+    const ops = getOperations(w.id)
+    const stdHrs = ops.reduce((s, op) => s + (parseFloat(op.standardHours) || 0), 0)
+    const actHrs = ops.reduce((s, op) => s + (parseFloat(op.actualHours) || 0), 0)
     return `
     <tr data-id="${w.id}">
       <td class="ps-3 wo-id">${w.id}</td>
       <td>${w.description}</td>
       <td><span class="status-badge ${statusClass[w.status] || ''}">${w.status}</span></td>
-<td>${w.department || '-'}</td>
+      <td>${w.department || '-'}</td>
       <td>${w.partNumber || '-'}</td>
       <td>${w.qty}</td>
-      <td>${w.dueDate}</td>
+      <td>${w.releaseDate || '-'}</td>
       <td><span class="op-badge">OP ${lastOp}</span></td>
-      <td>${workingOn.join(', ') || '-'}</td>
+      <td>${stdHrs.toFixed(2)}</td>
+      <td>${actHrs.toFixed(2)}</td>
     </tr>
   `
   }).join('')
@@ -68,8 +81,8 @@ function applyFilters() {
     (!status || w.status === status) &&
     (!dept || w.department === dept) &&
     (!part || w.partNumber === part) &&
-    (!fromDate || (w.dueDate && w.dueDate >= fromDate)) &&
-    (!toDate || (w.dueDate && w.dueDate <= toDate))
+    (!fromDate || (w.releaseDate && w.releaseDate >= fromDate)) &&
+    (!toDate || (w.releaseDate && w.releaseDate <= toDate))
   )
   renderTable(filtered)
 }
